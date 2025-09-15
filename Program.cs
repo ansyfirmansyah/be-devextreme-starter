@@ -1,12 +1,28 @@
+using be_devextreme_starter.Controllers;
+using be_devextreme_starter.Data;
+using be_devextreme_starter.Data.Models;
+using be_devextreme_starter.Middleware;
+using be_devextreme_starter.Reports;
+using DevExpress.AspNetCore;
+using DevExpress.AspNetCore.Reporting;
+using DevExpress.XtraReports.Services;
+using Microsoft.Data.SqlClient;
+using Microsoft.EntityFrameworkCore;
+using System.Text.Json.Serialization;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // 1. Tambahkan service ke container
 // ------------------------------------
 
 // Konfigurasi DbContext untuk EF Core
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlServer(connectionString));
+var baseConnectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+var connectionStringBuilder = new SqlConnectionStringBuilder(baseConnectionString);
+connectionStringBuilder.UserID = Environment.GetEnvironmentVariable("DB_USER");
+connectionStringBuilder.Password = Environment.GetEnvironmentVariable("DB_PASSWORD");
+var fullConnectionString = connectionStringBuilder.ConnectionString;
+builder.Services.AddDbContext<DataEntities>(options =>
+    options.UseSqlServer(fullConnectionString));
 
 // Konfigurasi DevExtreme
 builder.Services.AddDevExpressControls();
@@ -36,15 +52,16 @@ builder.Services
 
 
 // Konfigurasi DevExtreme Reporting
-builder.Services.AddScoped<ReportStorageWebExtension, CustomReportStorageWebExtension>();
+builder.Services.AddScoped<IReportProvider, CustomReportProvider>();
 builder.Services.ConfigureReportingServices(configurator => {
-    configurator.ConfigureReportDesigner(designerConfigurator => {
-        designerConfigurator.RegisterDataSourceWizardConfigFileConnectionStringsProvider();
-    });
     configurator.ConfigureWebDocumentViewer(viewerConfigurator => {
         viewerConfigurator.UseCachedReportSourceBuilder();
     });
 });
+
+// Konfigurasi swagger
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
 
 // 2. Konfigurasi HTTP request pipeline
 // ------------------------------------
@@ -59,6 +76,14 @@ if (!app.Environment.IsDevelopment())
 app.UseMiddleware<ErrorHandlerMiddleware>();
 
 app.UseHttpsRedirection();
+
+// Tampilkan Swagger UI hanya di environment Development
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
+
 app.UseStaticFiles();
 
 // Gunakan DevExpress Controls (termasuk Reporting)
