@@ -27,4 +27,29 @@
         public string temptable_outlet_id { get; set; }
         public string temptable_diskon_id { get; set; }
     }
+
+    public class JualUpdateDto
+    {
+        public long jualh_id { get; set; }
+
+        public string jualh_kode { get; set; } = null!;
+
+        public DateTime jualh_date { get; set; }
+
+        public long sales_id { get; set; }
+
+        public long outlet_id { get; set; }
+
+        public string stsrc { get; set; } = null!;
+
+        public string? created_by { get; set; }
+
+        public DateTime? date_created { get; set; }
+
+        public string? modified_by { get; set; }
+
+        public DateTime? date_modified { get; set; }
+
+        public string temptable_detail_id { get; set; }
+    }
 }
