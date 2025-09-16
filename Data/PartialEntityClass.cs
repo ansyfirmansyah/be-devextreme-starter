@@ -20,6 +20,14 @@ namespace be_devextreme_starter.Data.Models
 
         }
 
+        public Microsoft.AspNetCore.Http.HttpContext HttpContext
+        {
+            get
+            {
+                return httpContext;
+            }
+        }
+
         public void SetStsrcFields(dynamic obj)
         {
             dynamic obj2 = obj;

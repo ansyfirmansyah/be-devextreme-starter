@@ -32,5 +32,4 @@
             return new ApiResponse<object> { Success = false, Data = null, Message = message, StatusCode = statusCode };
         }
     }
-
 }

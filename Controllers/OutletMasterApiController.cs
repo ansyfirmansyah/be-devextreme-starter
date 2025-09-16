@@ -131,7 +131,7 @@ namespace be_devextreme_starter.Controllers
                     display = s.outlet_kode + " - " + s.outlet_nama
                 });
 
-            return Ok(ApiResponse<object>.Ok(DataSourceLoader.Load(query, loadOptions)));
+            return DataSourceLoader.Load(query, loadOptions);
         }
 
         [ApiExplorerSettings(IgnoreApi = true)]
@@ -142,6 +142,19 @@ namespace be_devextreme_starter.Controllers
             var isKodeExist = _db.Outlet_Masters
                                             .Any(x => x.outlet_kode == kode && x.outlet_id != id && x.stsrc == "A");
             return isKodeExist;
+        }
+
+        [HttpGet("ref/kode")]
+        public object GetRefKodeOutlet(DataSourceLoadOptions loadOptions)
+        {
+            var query = from h in _db.Outlet_Masters
+                        where h.stsrc == "A"
+                        select new
+                        {
+                            h.outlet_kode,
+                            display = h.outlet_kode + " - " + h.outlet_nama,
+                        };
+            return DataSourceLoader.Load(query, loadOptions);
         }
     }
 }
