@@ -15,6 +15,7 @@ namespace be_devextreme_starter.Controllers
     [Route("api/barang")]
     [AllowAnonymous]
     [IgnoreAntiforgeryToken]
+    [Tags("Barang")]
     public class BarangMasterApiController : Controller
     {
         #region

@@ -13,6 +13,7 @@ namespace be_devextreme_starter.Areas.API.Controllers
     [Route("api/klasifikasi")]
     [AllowAnonymous]
     [IgnoreAntiforgeryToken]
+    [Tags("Klasifikasi")]
     public class KlasifikasiMasterApiController : Controller
     {
         #region

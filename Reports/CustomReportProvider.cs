@@ -66,7 +66,9 @@ namespace be_devextreme_starter.Reports
                         var param = report.Parameters["outletKode"];
                         if (param != null)
                         {
-                            param.Value = categoryIdValue;
+                            Console.WriteLine("--- paramnya = " + categoryIdValue);
+                            param.Value = categoryIdValue != "[ALL]" ? categoryIdValue : null;
+                            Console.WriteLine("--- param reportnya = " + param);
                         }
                     }
                     else

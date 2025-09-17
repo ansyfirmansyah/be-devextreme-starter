@@ -1,6 +1,7 @@
 ﻿using be_devextreme_starter.Data.Models;
 using be_devextreme_starter.DTOs;
 using DevExtreme.AspNet.Data;
+using DevExtreme.AspNet.Data.ResponseModel;
 using DevExtreme.AspNet.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -14,6 +15,7 @@ namespace be_devextreme_starter.Controllers
     [Route("api/outlets")]
     [AllowAnonymous]
     [IgnoreAntiforgeryToken]
+    [Tags("Outlet")]
     public class OutletMasterApiController : Controller
     {
         #region
@@ -144,17 +146,28 @@ namespace be_devextreme_starter.Controllers
             return isKodeExist;
         }
 
-        [HttpGet("ref/kode")]
+        [HttpGet("ref/report/kode")]
         public object GetRefKodeOutlet(DataSourceLoadOptions loadOptions)
         {
             var query = from h in _db.Outlet_Masters
                         where h.stsrc == "A"
-                        select new
+                        select new KodeOutletForReportDto
                         {
-                            h.outlet_kode,
+                            outlet_kode = h.outlet_kode,
                             display = h.outlet_kode + " - " + h.outlet_nama,
                         };
-            return DataSourceLoader.Load(query, loadOptions);
+            var loadResult = DataSourceLoader.Load(query, loadOptions);
+            // Konversi hasil data menjadi List
+            var dataList = loadResult.data.Cast<KodeOutletForReportDto>().ToList();
+            // Buat dan tambahkan item "All Transactions" di posisi paling awal
+            dataList.Insert(0, new KodeOutletForReportDto
+            {
+                outlet_kode = "[ALL]", // atau string.Empty jika tipe datanya tidak nullable
+                display = "All Transactions"
+            });
+            // Kembalikan data yang sudah dimodifikasi ke dalam loadResult
+            loadResult.data = dataList;
+            return loadResult;
         }
     }
 }

@@ -13,6 +13,7 @@ namespace be_devextreme_starter.Controllers
     [Route("api/penjualan")]
     [AllowAnonymous]
     [IgnoreAntiforgeryToken]
+    [Tags("Penjualan")]
     public class PenjualanApiController : Controller
     {
         #region

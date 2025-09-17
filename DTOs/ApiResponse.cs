@@ -32,4 +32,10 @@
             return new ApiResponse<object> { Success = false, Data = null, Message = message, StatusCode = statusCode };
         }
     }
+
+    public class KodeOutletForReportDto
+    {
+        public string outlet_kode { get; set; }
+        public string display { get; set; }
+    }
 }

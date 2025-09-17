@@ -13,6 +13,7 @@ namespace be_devextreme_starter.Controllers
     [Route("api/sales")]
     [AllowAnonymous]
     [IgnoreAntiforgeryToken]
+    [Tags("Sales")]
     public class SalesMasterApiController : Controller
     {
         #region

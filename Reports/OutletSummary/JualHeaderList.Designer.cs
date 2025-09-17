@@ -77,7 +77,7 @@
             this.xrSubreport1.Name = "xrSubreport1";
             this.xrSubreport1.ParameterBindings.Add(new DevExpress.XtraReports.UI.ParameterBinding("jualhId", null, "sp_GetTransactionListBySales.jualh_id"));
             this.xrSubreport1.ReportSource = new be_devextreme_starter.Reports.OutletSummary.JualDetailList();
-            this.xrSubreport1.SizeF = new System.Drawing.SizeF(750F, 23F);
+            this.xrSubreport1.SizeF = new System.Drawing.SizeF(678.1945F, 23F);
             // 
             // xrTable1
             // 
@@ -86,7 +86,7 @@
             this.xrTable1.Padding = new DevExpress.XtraPrinting.PaddingInfo(2F, 2F, 0F, 0F, 100F);
             this.xrTable1.Rows.AddRange(new DevExpress.XtraReports.UI.XRTableRow[] {
             this.xrTableRow1});
-            this.xrTable1.SizeF = new System.Drawing.SizeF(750F, 25F);
+            this.xrTable1.SizeF = new System.Drawing.SizeF(678.1945F, 25F);
             // 
             // xrTableRow1
             // 
@@ -160,7 +160,7 @@
             this.xrTableCell4.Text = "xrTableCell4";
             this.xrTableCell4.TextAlignment = DevExpress.XtraPrinting.TextAlignment.MiddleLeft;
             this.xrTableCell4.TextFormatString = "{0:N2}";
-            this.xrTableCell4.Weight = 3.7196192107680792D;
+            this.xrTableCell4.Weight = 3.0015643669582452D;
             // 
             // salesId
             // 

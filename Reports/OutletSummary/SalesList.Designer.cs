@@ -70,7 +70,8 @@
             this.xrSubreport1,
             this.xrTable1,
             this.xrLabel1});
-            this.Detail.HeightF = 96F;
+            this.Detail.HeightF = 95.99999F;
+            this.Detail.KeepTogether = true;
             this.Detail.Name = "Detail";
             // 
             // xrSubreport1
@@ -79,7 +80,7 @@
             this.xrSubreport1.Name = "xrSubreport1";
             this.xrSubreport1.ParameterBindings.Add(new DevExpress.XtraReports.UI.ParameterBinding("salesId", null, "sp_GetSalesSummary.sales_id"));
             this.xrSubreport1.ReportSource = new be_devextreme_starter.Reports.OutletSummary.JualHeaderList();
-            this.xrSubreport1.SizeF = new System.Drawing.SizeF(724.5192F, 22.99999F);
+            this.xrSubreport1.SizeF = new System.Drawing.SizeF(660.3526F, 22.99999F);
             // 
             // xrTable1
             // 
@@ -89,7 +90,7 @@
             this.xrTable1.Rows.AddRange(new DevExpress.XtraReports.UI.XRTableRow[] {
             this.xrTableRow2,
             this.xrTableRow3});
-            this.xrTable1.SizeF = new System.Drawing.SizeF(750F, 50F);
+            this.xrTable1.SizeF = new System.Drawing.SizeF(685.8334F, 50F);
             // 
             // xrTableRow2
             // 
@@ -127,7 +128,7 @@
             this.xrTableCell6.StylePriority.UseTextAlignment = false;
             this.xrTableCell6.Text = "xrTableCell6";
             this.xrTableCell6.TextAlignment = DevExpress.XtraPrinting.TextAlignment.MiddleLeft;
-            this.xrTableCell6.Weight = 5.5D;
+            this.xrTableCell6.Weight = 4.8583337402343751D;
             // 
             // xrTableRow3
             // 
@@ -166,7 +167,7 @@
             this.xrTableCell9.Text = "xrTableCell9";
             this.xrTableCell9.TextAlignment = DevExpress.XtraPrinting.TextAlignment.MiddleLeft;
             this.xrTableCell9.TextFormatString = "{0:N2}";
-            this.xrTableCell9.Weight = 5.5D;
+            this.xrTableCell9.Weight = 4.8583337402343751D;
             // 
             // xrLabel1
             // 
@@ -177,7 +178,7 @@
             this.xrLabel1.Multiline = true;
             this.xrLabel1.Name = "xrLabel1";
             this.xrLabel1.Padding = new DevExpress.XtraPrinting.PaddingInfo(2F, 2F, 0F, 0F, 100F);
-            this.xrLabel1.SizeF = new System.Drawing.SizeF(750F, 23F);
+            this.xrLabel1.SizeF = new System.Drawing.SizeF(685.8334F, 23F);
             this.xrLabel1.StylePriority.UseFont = false;
             this.xrLabel1.StylePriority.UseTextAlignment = false;
             this.xrLabel1.Text = "Outlet: ";
