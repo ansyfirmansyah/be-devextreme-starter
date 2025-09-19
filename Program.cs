@@ -8,6 +8,8 @@ using DevExpress.AspNetCore.Reporting;
 using DevExpress.XtraReports.Services;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.OpenApi.Models;
+using OfficeOpenXml;
 using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -26,6 +28,9 @@ builder.Services.AddDbContext<DataEntities>(options =>
 
 // Konfigurasi DevExtreme
 builder.Services.AddDevExpressControls();
+
+// Untuk kebutuhan belajar, set sebagai non commercial
+ExcelPackage.License.SetNonCommercialPersonal("Firmansyah");
 
 // Konfigurasi CORS agar React bisa akses API
 builder.Services.AddCors(options =>

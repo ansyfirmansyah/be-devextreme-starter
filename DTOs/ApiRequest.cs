@@ -52,4 +52,10 @@
 
         public string temptable_detail_id { get; set; }
     }
+
+    // Sebagai referensi swagger untuk upload file
+    public class FileUploadRequest
+    {
+        public IFormFile File { get; set; }
+    }
 }

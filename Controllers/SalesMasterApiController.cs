@@ -6,6 +6,8 @@ using DevExtreme.AspNet.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
+using OfficeOpenXml;
+using OfficeOpenXml.Style;
 
 namespace be_devextreme_starter.Controllers
 {
@@ -135,6 +137,222 @@ namespace be_devextreme_starter.Controllers
             var isKodeExist = _db.Sales_Masters
                                             .Any(x => x.sales_kode == kode && x.sales_id != id && x.stsrc == "A");
             return isKodeExist;
+        }
+
+        [HttpGet("download-template")]
+        public IActionResult DownloadTemplate()
+        {
+            // Mengatur nama file yang akan diunduh
+            var fileName = "Template_Upload_Sales.xlsx";
+            // Menggunakan MemoryStream agar tidak perlu menyimpan file fisik di server
+            using (var stream = new MemoryStream())
+            {
+                // Membuat package Excel baru dengan EPPlus
+                using (var package = new ExcelPackage(stream))
+                {
+                    // Menambahkan worksheet (lembar kerja) baru
+                    var worksheet = package.Workbook.Worksheets.Add("Data Sales");
+
+                    // --- Membuat Header Tabel ---
+                    worksheet.Cells["A1"].Value = "Kode Sales";
+                    worksheet.Cells["B1"].Value = "Nama Sales";
+                    worksheet.Cells["C1"].Value = "Kode Outlet";
+
+                    // --- Styling Header (karena sebagai judul) ---
+                    using (var range = worksheet.Cells["A1:C1"])
+                    {
+                        range.Style.Font.Bold = true;
+                        range.Style.Fill.PatternType = ExcelFillStyle.Solid;
+                        range.Style.Fill.BackgroundColor.SetColor(System.Drawing.Color.LightGray);
+                        range.Style.Font.Name = "Calibri";
+                        range.Style.Font.Size = 11;
+                    }
+
+                    // --- Menambahkan Contoh Data (Opsional, tapi sangat membantu pengguna) ---
+                    worksheet.Cells["A2"].Value = "S01";
+                    worksheet.Cells["B2"].Value = "Contoh Nama Sales";
+                    worksheet.Cells["C2"].Value = "OK01"; // Pastikan kode outlet contoh ini ada di database
+                    // --- Styling Detail agar sama dengan Header
+                    using (var range = worksheet.Cells["A2:C2"])
+                    {
+                        range.Style.Font.Name = "Calibri";
+                        range.Style.Font.Size = 11;
+                    }
+
+                    // Mengatur lebar kolom agar pas
+                    worksheet.Column(1).AutoFit();
+                    worksheet.Column(2).AutoFit();
+                    worksheet.Column(3).AutoFit();
+
+                    // Simpan perubahan ke package
+                    package.Save();
+                }
+
+                // Kembali ke awal stream sebelum dibaca untuk diunduh
+                stream.Position = 0;
+
+                // Mengembalikan file ke browser
+                return File(stream.ToArray(), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
+            }
+        }
+
+        [HttpPost("preview-upload")]
+        public async Task<IActionResult> PreviewUpload([FromForm] FileUploadRequest request)
+        {
+            // Mendapatkan file dari request body
+            var file = request.File;
+            if (file == null || file.Length == 0)
+            {
+                return BadRequest(new { message = "File tidak boleh kosong." });
+            }
+
+            // Menggunakan DTO sebagai containernya
+            var previewList = new List<SalesUploadPreviewDto>();
+            var kodes = new List<String>(); // untuk validasi duplikat kode di file yang sama
+            int row = 1;
+
+            // Menggunakan MemoryStream agar tidak perlu menyimpan file fisik di server
+            using (var stream = new MemoryStream())
+            {
+                await file.CopyToAsync(stream);
+                // Membuat package Excel baru dengan EPPlus
+                using (var package = new ExcelPackage(stream))
+                {
+                    // Hanya membaca sheet pertama
+                    ExcelWorksheet worksheet = package.Workbook.Worksheets[0];
+                    if (worksheet.Dimension == null)
+                    {
+                        return BadRequest(new { message = "File tidak boleh kosong." });
+                    }
+                    // Menghitung isi baris
+                    var rowCount = worksheet.Dimension.Rows;
+
+                    // Validasi judul kolom
+                    if (worksheet.Cells["A1"].Value?.ToString().Trim().ToLower() != "kode sales"
+                        || worksheet.Cells["B1"].Value?.ToString().Trim().ToLower() != "nama sales"
+                        || worksheet.Cells["C1"].Value?.ToString().Trim().ToLower() != "kode outlet"
+                        )
+                    {
+                        return BadRequest(new { message = "Judul kolom tidak sesuai." });
+                    }
+
+                    for (row = 2; row <= rowCount; row++) // Asumsi baris pertama adalah header maka di-skip
+                    {
+                        var previewDto = new SalesUploadPreviewDto { 
+                            RowNumber = row - 1, // row number akan digunakan sebagai nomor, oleh karena itu dikurang 1 dari index
+                            sales_kode = worksheet.Cells[row, 1].Value?.ToString().Trim(),
+                            sales_nama = worksheet.Cells[row, 2].Value?.ToString().Trim(),
+                            outlet_kode = worksheet.Cells[row, 3].Value?.ToString().Trim(),
+                            IsValid = true
+                        };
+                        List<String> errorMessages = new List<String>();
+
+                        // --- Validasi ---
+                        if (string.IsNullOrEmpty(previewDto.sales_kode))
+                        {
+                            previewDto.IsValid = false;
+                            errorMessages.Add("Kode Sales harus diisi.");
+                        } else
+                        {
+                            // cek kode duplikat
+                            if (kodes.Any(a => a == previewDto.sales_kode))
+                            {
+                                previewDto.IsValid = false;
+                                errorMessages.Add($"Kode sales '{previewDto.sales_kode}' sudah ada di file yang diupload.");
+                            }
+                            // add existing kode untuk validasi
+                            kodes.Add(previewDto.sales_kode);
+                            if (_db.Sales_Masters.Any(s => s.sales_kode == previewDto.sales_kode && s.stsrc == "A"))
+                            {
+                                previewDto.IsValid = false;
+                                errorMessages.Add($"Kode sales '{previewDto.sales_kode}' sudah ada di database.");
+                            }
+                        }
+
+                        if (string.IsNullOrEmpty(previewDto.sales_nama))
+                        {
+                            previewDto.IsValid = false;
+                            errorMessages.Add("Nama Sales harus diisi.");
+                        }
+                        if (string.IsNullOrEmpty(previewDto.outlet_kode))
+                        {
+                            previewDto.IsValid = false;
+                            errorMessages.Add("Kode Outlet harus diisi.");
+                        } else if (!_db.Outlet_Masters.Any(s => s.outlet_kode == previewDto.outlet_kode && s.stsrc == "A"))
+                        {
+                            previewDto.IsValid = false;
+                            errorMessages.Add($"Kode outlet '{previewDto.outlet_kode}' tidak ditemukan.");
+                        }       
+
+                        // Kombinasikan error message
+                        if (!previewDto.IsValid)
+                        {
+                            foreach (var item in errorMessages)
+                            {
+                                previewDto.ValidationMessage += (item + " ");
+                            }
+                        }
+                            
+                        previewList.Add(previewDto);
+                    }
+                }
+            }
+
+            return Ok(ApiResponse<List<SalesUploadPreviewDto>>.Ok(previewList));
+        }
+
+        [HttpPost("commit-upload")]
+        public async Task<IActionResult> CommitUpload([FromBody] List<SalesUploadPreviewDto> validSales)
+        {
+            // Periksa isi request body
+            if (validSales == null || !validSales.Any())
+            {
+                return BadRequest(new { message = "Tidak ada data valid untuk diimpor." });
+            }
+            var salesToCreate = new List<Sales_Master>();
+
+            // Insert ke database menggunakan transaction agar menjadi atomic (semua berhasil atau semua gagal total)
+            using (var transaction = await _db.Database.BeginTransactionAsync())
+            {
+                try
+                {
+                    // Looping isi request body
+                    foreach (var saleDto in validSales)
+                    {
+                        // Kita perlu mengambil lagi outlet_id karena DTO hanya punya outlet_kode
+                        var outlet = _db.Outlet_Masters.FirstOrDefault(o => o.outlet_kode == saleDto.outlet_kode && o.stsrc == "A");
+                        if (outlet == null)
+                        {
+                            // Jika outlet tidak ditemukan, lemparkan error yang lebih jelas
+                            return BadRequest(new { message = $"Gagal menyimpan: Outlet dengan kode '{saleDto.outlet_kode}' tidak ditemukan di database." });
+                        }
+                        // Init data sesuai kebutuhan database
+                        var newSale = new Sales_Master
+                        {
+                            sales_kode = saleDto.sales_kode,
+                            sales_nama = saleDto.sales_nama,
+                            outlet_id = outlet.outlet_id
+                        };
+                        _db.SetStsrcFields(newSale);
+                        salesToCreate.Add(newSale);
+                    }
+
+                    await _db.Sales_Masters.AddRangeAsync(salesToCreate);
+                    await _db.SaveChangesAsync();
+
+                    // Jika semua sukses, commit transaksi
+                    await transaction.CommitAsync();
+                }
+                catch (Exception ex)
+                {
+                    // Jika ada satu saja error, batalkan semua yang sudah dilakukan
+                    await transaction.RollbackAsync();
+                    // Kembalikan pesan error
+                    return StatusCode(500, new { message = "Terjadi kesalahan saat menyimpan ke database. Semua data dibatalkan.", error = ex.Message });
+                }
+            }
+
+            return Ok(new { message = $"{salesToCreate.Count} data berhasil diimpor." });
         }
     }
 }

@@ -38,4 +38,14 @@
         public string outlet_kode { get; set; }
         public string display { get; set; }
     }
+
+    public class SalesUploadPreviewDto
+    {
+        public int RowNumber { get; set; }
+        public string sales_kode { get; set; }
+        public string sales_nama { get; set; }
+        public string outlet_kode { get; set; }
+        public bool IsValid { get; set; }
+        public string? ValidationMessage { get; set; }
+    }
 }
