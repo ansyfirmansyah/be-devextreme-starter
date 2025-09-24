@@ -88,4 +88,19 @@
         public List<JualhUploadPreviewDto> Header { get; set; }
         public List<JualdUploadPreviewDto> Detail { get; set; }
     }
+
+    public class KpiResponseDto
+    {
+        public decimal salesMonth { get; set; }
+        public int transactionsMonth { get; set; }
+        public List<string> topProducts {  get; set; }
+        public List<string> topOutlets { get; set; }
+        public List<string> topSales { get; set; }
+    }
+
+    public class SalesTrendDto
+    {
+        public DateTime Date { get; set; }
+        public decimal TotalSales { get; set; }
+    }
 }
