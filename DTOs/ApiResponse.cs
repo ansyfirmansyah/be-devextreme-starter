@@ -48,4 +48,44 @@
         public bool IsValid { get; set; }
         public string? ValidationMessage { get; set; }
     }
+
+    public class JualhUploadPreviewDto
+    {
+        public int RowNumber { get; set; }
+        public string Jualh_kode { get; set; }
+        public DateTime? Jualh_date { get; set; }
+        public string Outlet_kode { get; set; }
+        public string Outlet_nama { get; set; }
+        public string? Outlet { get; set; }
+        public long? Outlet_id { get; set; }
+        public string Sales_kode { get; set; }
+        public string Sales_nama { get; set; }
+        public string? Sales { get; set; }
+        public long? Sales_id { get; set; }
+        public bool IsValid { get; set; }
+        public string? ValidationMessage { get; set; }
+    }
+
+    public class JualdUploadPreviewDto
+    {
+        public int RowNumber { get; set; }
+        public string Jualh_kode { get; set; }
+        public string Barang_kode { get; set; }
+        public string Barang_nama { get; set; }
+        public string Barang { get; set; }
+        public long? Barang_id { get; set; }
+        public decimal Juald_harga { get; set; }
+        public int Juald_qty { get; set; }
+        public string? Diskon { get; set; }
+        public long? Barangd_id { get; set; }
+        public decimal? Juald_disk { get; set; }
+        public bool IsValid { get; set; }
+        public string? ValidationMessage { get; set; }
+    }
+
+    public class PenjualanUploadPreviewDto
+    {
+        public List<JualhUploadPreviewDto> Header { get; set; }
+        public List<JualdUploadPreviewDto> Detail { get; set; }
+    }
 }
