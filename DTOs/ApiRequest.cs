@@ -2,10 +2,10 @@
 {
     public class SalesUpdateDto
     {
-        public int sales_id { get; set; }
+        public long sales_id { get; set; }
         public string sales_kode { get; set; }
         public string sales_nama { get; set; }
-        public int outlet_id { get; set; }
+        public long outlet_id { get; set; }
     }
 
     public class KlasifikasiUpdateDto

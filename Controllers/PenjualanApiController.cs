@@ -1,15 +1,13 @@
 ﻿using be_devextreme_starter.Data;
 using be_devextreme_starter.Data.Models;
 using be_devextreme_starter.DTOs;
-using DevExpress.SpreadsheetSource.Implementation;
-using DevExpress.XtraGauges.Core.Model;
 using DevExtreme.AspNet.Data;
 using DevExtreme.AspNet.Mvc;
+using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
 using OfficeOpenXml;
-using OfficeOpenXml.Drawing.Chart;
 using OfficeOpenXml.Style;
 
 namespace be_devextreme_starter.Controllers
@@ -23,10 +21,12 @@ namespace be_devextreme_starter.Controllers
     {
         private readonly DataEntities _db;
         private readonly IWebHostEnvironment _env;
-        public PenjualanApiController(DataEntities context, IWebHostEnvironment env)
+        private readonly IValidator<JualUpdateDto> _validator;
+        public PenjualanApiController(DataEntities context, IWebHostEnvironment env, IValidator<JualUpdateDto> validator)
         {
             this._db = context;
             this._env = env;
+            this._validator = validator;
         }
 
         // GET: /api/penjualan/get
@@ -52,17 +52,20 @@ namespace be_devextreme_starter.Controllers
 
         // INSERT (Untuk Tombol "Add")
         [HttpPost("post")]
-        public IActionResult Post([FromForm] string values)
+        public async Task<IActionResult> Post([FromForm] string values)
         {
             // Gunakan DTO untuk mendapatkan Request Body, dikarenakan terdapat tambahan field seperti temptable_outlet_id
             var dto = JsonConvert.DeserializeObject<JualUpdateDto>(values);
+            // Jalankan validasi secara manual
+            var validationResult = await _validator.ValidateAsync(dto);
+
+            if (!validationResult.IsValid)
+            {
+                return BadRequest(ApiResponse<object>.BadRequest(validationResult.ToString(" ")));
+            }
             var obj = new Jual_Header();
             // Copy value dari DTO ke Object yang akan disimpan ke db, kecuali field tambahan
             WSMapper.CopyFieldValues(dto, obj, "jualh_kode,jualh_date,sales_id,outlet_id");
-            if (checkDuplicateKode(dto.jualh_kode, dto.jualh_id))
-            {
-                return Conflict(ApiResponse<object>.Conflict($"Kode '{obj.jualh_kode}' sudah digunakan. Silakan gunakan kode lain."));
-            }
             _db.SetStsrcFields(obj);
             _db.Jual_Headers.Add(obj);
 
@@ -109,16 +112,20 @@ namespace be_devextreme_starter.Controllers
 
         // UPDATE (Untuk Tombol "Edit")
         [HttpPut("put")]
-        public IActionResult Put([FromForm] long key, [FromForm] string values)
+        public async Task<IActionResult> Put([FromForm] long key, [FromForm] string values)
         {
             var oldObj = _db.Jual_Headers.Find(key); // cari terlebih dahulu data sesuai id yang diubah
             if (oldObj == null)
                 return NotFound(ApiResponse<object>.NotFound());
             var obj = JsonConvert.DeserializeObject<JualUpdateDto>(values);
-            if (checkDuplicateKode(obj.jualh_kode, obj.jualh_id))
+            // Jalankan validasi secara manual
+            var validationResult = await _validator.ValidateAsync(obj);
+
+            if (!validationResult.IsValid)
             {
-                return Conflict(ApiResponse<object>.Conflict($"Kode '{obj.jualh_kode}' sudah digunakan. Silakan gunakan kode lain."));
+                return BadRequest(ApiResponse<object>.BadRequest(validationResult.ToString(" ")));
             }
+
             // fungsi untuk copy data dari object edit ke object di database, sebutkan kolom-kolom yang ingin diubah
             WSMapper.CopyFieldValues(obj, oldObj, "jualh_id,jualh_kode,jualh_date,sales_id,outlet_id");
             _db.SetStsrcFields(oldObj); // fungsi untuk mengisi stsrc, date_created, created_by, date_modified dan modified_by
@@ -180,16 +187,6 @@ namespace be_devextreme_starter.Controllers
 
             _db.SaveChanges(); // simpan perubahan ke database
             return Ok(ApiResponse<object>.Ok(null, "data deleted"));
-        }
-
-
-        [ApiExplorerSettings(IgnoreApi = true)]
-        public bool checkDuplicateKode(string kode, long id)
-        {
-            // Jika id = 0 (mode Create)
-            // Jika id > 0 (mode Edit)
-            var isKodeExist = _db.Jual_Headers.Any(x => x.jualh_kode == kode && x.jualh_id != id && x.stsrc == "A");
-            return isKodeExist;
         }
 
         [HttpGet("ref/outlet")]
@@ -316,7 +313,7 @@ namespace be_devextreme_starter.Controllers
             bool isDuplicate = listDetail.Any(v => v.barang_id.ToString() == barang_id);
             if (isDuplicate)
             {
-                return BadRequest(new { message = "Barang tidak boleh duplikat!" });
+                return BadRequest(ApiResponse<object>.BadRequest("Barang tidak boleh duplikat!"));
             }
             // Hitung Diskon (jika ada)
             decimal juald_disk = 0;
@@ -325,7 +322,7 @@ namespace be_devextreme_starter.Controllers
                 var barang_diskon = _db.Barang_Diskons.Where(bd => bd.barangd_id.ToString() == barangd_id && bd.stsrc == "A").First();
                 if (barang_diskon == null)
                 {
-                    return BadRequest(new { error = "Diskon tidak ditemukan!" });
+                    return BadRequest(ApiResponse<object>.BadRequest("Diskon tidak ditemukan!"));
                 }
                 int countDisk = juald_qty / barang_diskon.barangd_qty.GetValueOrDefault();
                 juald_disk = barang_diskon.barangd_disc.GetValueOrDefault() * countDisk;
@@ -685,7 +682,7 @@ namespace be_devextreme_starter.Controllers
             var file = request.File;
             if (file == null || file.Length == 0)
             {
-                return BadRequest(new { message = "File tidak boleh kosong." });
+                return BadRequest(ApiResponse<object>.BadRequest("File tidak boleh kosong."));
             }
 
             // Menggunakan DTO sebagai containernya
@@ -706,7 +703,7 @@ namespace be_devextreme_starter.Controllers
                     ExcelWorksheet detailWorksheet = package.Workbook.Worksheets[1];
                     if (headerWorksheet.Dimension == null)
                     {
-                        return BadRequest(new { message = "File tidak boleh kosong." });
+                        return BadRequest(ApiResponse<object>.BadRequest("File tidak boleh kosong."));
                     }
                     // Menghitung isi baris
                     var rowCountHeader = headerWorksheet.Dimension.Rows;
@@ -719,7 +716,7 @@ namespace be_devextreme_starter.Controllers
                         || headerWorksheet.Cells["D1"].Value?.ToString().Trim().ToLower() != "sales"
                         )
                     {
-                        return BadRequest(new { message = "Judul kolom di sheet Header tidak sesuai." });
+                        return BadRequest(ApiResponse<object>.BadRequest("Judul kolom di sheet Header tidak sesuai."));
                     }
                     // Validasi judul kolom di detail
                     if (detailWorksheet.Cells["A1"].Value?.ToString().Trim().ToLower() != "kode penjualan"
@@ -730,7 +727,7 @@ namespace be_devextreme_starter.Controllers
                         || detailWorksheet.Cells["F1"].Value?.ToString().Trim().ToLower() != "diskon"
                         )
                     {
-                        return BadRequest(new { message = "Judul kolom di sheet Detail tidak sesuai." });
+                        return BadRequest(ApiResponse<object>.BadRequest("Judul kolom di sheet Detail tidak sesuai."));
                     }
 
                     // Mengolah isi sheet Header
@@ -998,7 +995,7 @@ namespace be_devextreme_starter.Controllers
             // Periksa isi request body
             if (validPenjualan == null || !validPenjualan.Header.Any())
             {
-                return BadRequest(new { message = "Tidak ada data valid untuk diimpor." });
+                return BadRequest(ApiResponse<object>.BadRequest("Tidak ada data valid untuk diimpor."));
             }
             var headerToCreate = new List<Jual_Header>();
             var detailToCreate = new List<Jual_Detail>();
@@ -1016,14 +1013,14 @@ namespace be_devextreme_starter.Controllers
                         if (outlet == null || outlet.outlet_id != header.Outlet_id)
                         {
                             // Jika outlet tidak ditemukan, lemparkan error yang lebih jelas
-                            return BadRequest(new { message = $"Gagal menyimpan: Outlet dengan kode '{header.Outlet_kode}' tidak ditemukan di database." });
+                            return BadRequest(ApiResponse<object>.BadRequest($"Gagal menyimpan: Outlet dengan kode '{header.Outlet_kode}' tidak ditemukan di database."));
                         }
                         // Verifikasi Sales
                         var sales = _db.Sales_Masters.FirstOrDefault(o => o.sales_kode == header.Sales_kode && o.stsrc == "A");
                         if (outlet == null || sales.sales_id != header.Sales_id)
                         {
                             // Jika outlet tidak ditemukan, lemparkan error yang lebih jelas
-                            return BadRequest(new { message = $"Gagal menyimpan: Sales dengan kode '{header.Sales_kode}' tidak ditemukan di database." });
+                            return BadRequest(ApiResponse<object>.BadRequest($"Gagal menyimpan: Sales dengan kode '{header.Sales_kode}' tidak ditemukan di database."));
                         }
                         // Init data sesuai kebutuhan database
                         var newData = new Jual_Header
@@ -1045,7 +1042,7 @@ namespace be_devextreme_starter.Controllers
                         if (barang == null || barang.barang_id != detail.Barang_id)
                         {
                             // Jika outlet tidak ditemukan, lemparkan error yang lebih jelas
-                            return BadRequest(new { message = $"Gagal menyimpan: Barang dengan kode '{detail.Barang_kode}' tidak ditemukan di database." });
+                            return BadRequest(ApiResponse<object>.BadRequest($"Gagal menyimpan: Barang dengan kode '{detail.Barang_kode}' tidak ditemukan di database."));
                         }
                         // Verifikasi Diskon
                         if (detail.Barangd_id != null)
@@ -1054,14 +1051,14 @@ namespace be_devextreme_starter.Controllers
                             if (diskon == null)
                             {
                                 // Jika outlet tidak ditemukan, lemparkan error yang lebih jelas
-                                return BadRequest(new { message = $"Gagal menyimpan: Diskon dengan qty '{detail.Juald_qty}' tidak ditemukan di database." });
+                                return BadRequest(ApiResponse<object>.BadRequest($"Gagal menyimpan: Diskon dengan qty '{detail.Juald_qty}' tidak ditemukan di database."));
                             }
                         }
                         // Verifikasi Header
                         var header = headerToCreate.FirstOrDefault(h => h.jualh_kode == detail.Jualh_kode);
                         if (header == null)
                         {
-                            return BadRequest(new { message = $"Gagal menyimpan: Header Penjualan dengan kode '{detail.Jualh_kode}' tidak ditemukan." });
+                            return BadRequest(ApiResponse<object>.BadRequest($"Gagal menyimpan: Header Penjualan dengan kode '{detail.Jualh_kode}' tidak ditemukan."));
                         }
                         // Init data sesuai kebutuhan database
                         var newData = new Jual_Detail
@@ -1088,7 +1085,7 @@ namespace be_devextreme_starter.Controllers
                     // Jika ada satu saja error, batalkan semua yang sudah dilakukan
                     await transaction.RollbackAsync();
                     // Kembalikan pesan error
-                    return StatusCode(500, new { message = "Terjadi kesalahan saat menyimpan ke database. Semua data dibatalkan.", error = ex.Message });
+                    throw ex;
                 }
             }
 

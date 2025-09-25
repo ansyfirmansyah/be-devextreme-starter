@@ -3,9 +3,12 @@ using be_devextreme_starter.Data;
 using be_devextreme_starter.Data.Models;
 using be_devextreme_starter.Middleware;
 using be_devextreme_starter.Reports;
+using be_devextreme_starter.Validators;
 using DevExpress.AspNetCore;
 using DevExpress.AspNetCore.Reporting;
 using DevExpress.XtraReports.Services;
+using FluentValidation;
+using FluentValidation.AspNetCore;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
@@ -55,6 +58,15 @@ builder.Services
     })
     .AddNewtonsoftJson();
 
+// Daftarkan semua validator
+builder.Services.AddValidatorsFromAssemblyContaining<SalesValidator>();
+builder.Services.AddValidatorsFromAssemblyContaining<PenjualanValidator>();
+// Aktifkan validator ke pipeline validasi otomatis
+builder.Services.AddFluentValidationAutoValidation(options =>
+{
+    // Menonaktifkan validasi bawaan (Data Annotations, dll)
+    options.DisableDataAnnotationsValidation = true;
+});
 
 // Konfigurasi DevExtreme Reporting
 builder.Services.AddScoped<IReportProvider, CustomReportProvider>();
