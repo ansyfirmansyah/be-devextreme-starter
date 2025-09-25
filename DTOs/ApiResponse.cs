@@ -6,6 +6,7 @@
         public T Data { get; set; }
         public string Message { get; set; }
         public int StatusCode { get; set; }
+        public string? traceId { get; set; }
 
         public static ApiResponse<T> Ok(T data, string message = "Success")
         {
@@ -27,9 +28,14 @@
             return new ApiResponse<object> { Success = false, Data = null, Message = message, StatusCode = 400 };
         }
 
-        public static ApiResponse<object> Error(string message = "An unexpected error occurred", int statusCode = 500)
+        public static ApiResponse<object> Conflict(string message = "Conflict")
         {
-            return new ApiResponse<object> { Success = false, Data = null, Message = message, StatusCode = statusCode };
+            return new ApiResponse<object> { Success = false, Data = null, Message = message, StatusCode = 409 };
+        }
+
+        public static ApiResponse<object> Error(string message = "An unexpected error occurred", int statusCode = 500, string traceId = "")
+        {
+            return new ApiResponse<object> { Success = false, Data = null, Message = message, StatusCode = statusCode, traceId = traceId };
         }
     }
 

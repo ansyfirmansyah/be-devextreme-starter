@@ -89,8 +89,6 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseStaticFiles();
-
 // Gunakan DevExpress Controls (termasuk Reporting)
 app.UseDevExpressControls();
 

@@ -21,171 +21,148 @@ namespace be_devextreme_starter.Controllers
     [Tags("Penjualan")]
     public class PenjualanApiController : Controller
     {
-        #region
-        private DataEntities _db;
-        private IWebHostEnvironment _env;
+        private readonly DataEntities _db;
+        private readonly IWebHostEnvironment _env;
         public PenjualanApiController(DataEntities context, IWebHostEnvironment env)
         {
             this._db = context;
             this._env = env;
         }
-        #endregion
 
         // GET: /api/penjualan/get
         [HttpGet("get")]
         public object Get(DataSourceLoadOptions loadOptions)
         {
-            try
+            var query = _db.Jual_Headers
+            .Join(_db.Outlet_Masters, h => h.outlet_id, o => o.outlet_id, (h, o) => new { h, o })
+            .Join(_db.Sales_Masters, c => c.h.sales_id, s => s.sales_id, (c, s) => new { c.h, c.o, s })
+            .Where(c => c.h.stsrc == "A")
+            .Select(c => new
             {
-                var query = _db.Jual_Headers
-                .Join(_db.Outlet_Masters, h => h.outlet_id, o => o.outlet_id, (h, o) => new { h, o })
-                .Join(_db.Sales_Masters, c => c.h.sales_id, s => s.sales_id, (c, s) => new { c.h, c.o, s })
-                .Where(c => c.h.stsrc == "A")
-                .Select(c => new
-                {
-                    c.h.jualh_id,
-                    c.h.jualh_kode,
-                    c.h.jualh_date,
-                    c.o.outlet_id,
-                    c.s.sales_id,
-                    outlet_display = c.o.outlet_kode + " - " + c.o.outlet_nama,
-                    sales_display = c.s.sales_kode + " - " + c.s.sales_nama,
-                });
-                return DataSourceLoader.Load(query, loadOptions);
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
+                c.h.jualh_id,
+                c.h.jualh_kode,
+                c.h.jualh_date,
+                c.o.outlet_id,
+                c.s.sales_id,
+                outlet_display = c.o.outlet_kode + " - " + c.o.outlet_nama,
+                sales_display = c.s.sales_kode + " - " + c.s.sales_nama,
+            });
+            return DataSourceLoader.Load(query, loadOptions);
         }
 
         // INSERT (Untuk Tombol "Add")
         [HttpPost("post")]
         public IActionResult Post([FromForm] string values)
         {
-            try
+            // Gunakan DTO untuk mendapatkan Request Body, dikarenakan terdapat tambahan field seperti temptable_outlet_id
+            var dto = JsonConvert.DeserializeObject<JualUpdateDto>(values);
+            var obj = new Jual_Header();
+            // Copy value dari DTO ke Object yang akan disimpan ke db, kecuali field tambahan
+            WSMapper.CopyFieldValues(dto, obj, "jualh_kode,jualh_date,sales_id,outlet_id");
+            if (checkDuplicateKode(dto.jualh_kode, dto.jualh_id))
             {
-                // Gunakan DTO untuk mendapatkan Request Body, dikarenakan terdapat tambahan field seperti temptable_outlet_id
-                var dto = JsonConvert.DeserializeObject<JualUpdateDto>(values);
-                var obj = new Jual_Header();
-                // Copy value dari DTO ke Object yang akan disimpan ke db, kecuali field tambahan
-                WSMapper.CopyFieldValues(dto, obj, "jualh_kode,jualh_date,sales_id,outlet_id");
-                if (checkDuplicateKode(dto.jualh_kode, dto.jualh_id))
-                {
-                    return BadRequest(new { message = $"Kode '{dto.jualh_kode}' sudah digunakan. Silakan gunakan kode lain." });
-                }
-                _db.SetStsrcFields(obj);
-                _db.Jual_Headers.Add(obj);
-
-                /* start input data detail ke DB (Add, Edit, Delete) */
-                // Jual Detail
-                var temp1 = new TempTableHelper<List<Jual_Detail>>(_db); // buat objek helper untuk menyimpan data sementara
-                Guid temptableGuid1 = Guid.Parse(dto.temptable_detail_id); // ambil id temporary table dari object yang diisi ke tipe data Guid
-                var detailList1 = temp1.GetContentAsObject(temptableGuid1); // ambil data dari temporary table berdasarkan id
-
-                var tobeDeleteList = (from q in _db.Jual_Details where q.stsrc == "A" && q.jualh_id == obj.jualh_id select q).ToList(); // cari data yang akan dihapus
-                foreach (var x in detailList1)
-                {
-                    Jual_Detail dataDetail = null; // inisialisasi object detail
-                    if (x.juald_id > 0) // berarti sudah pernah disimpan ke db, lakukan update data
-                    {
-                        var query = (from q in tobeDeleteList where q.juald_id == x.juald_id select q);
-                        if (query.Count() > 0) // jika data ditemukan, maka update data tersebut
-                        {
-                            dataDetail = query.First(); // ambil data yang akan diupdate
-                            tobeDeleteList.Remove(dataDetail); // hapus dari list yang akan dihapus
-                        }
-                    }
-                    else // berarti data baru, buat object baru
-                    {
-                        dataDetail = new Jual_Detail();
-                        _db.Jual_Details.Add(dataDetail); // tambahkan ke db
-                        dataDetail.jualh = obj; // set link ke object utama
-                    }
-                    dataDetail.barang_id = x.barang_id; // set data detailnya
-                    dataDetail.juald_qty = x.juald_qty; // set data detailnya
-                    dataDetail.juald_harga = x.juald_harga; // set data detailnya
-                    dataDetail.juald_disk = x.juald_disk; // set data detailnya
-                    _db.SetStsrcFields(dataDetail); // set kolom stsrc, date_created, created_by, date_modified dan modified_by
-                }
-                foreach (var x in tobeDeleteList) // hapus data yang sudah tidak ada di temporary table
-                {
-                    _db.DeleteStsrc(x); // fungsi untuk menghapus data dengan mengisi stsrc menjadi 'D' (deleted)
-                }
-                /* end input data detail ke DB (Add, Edit, Delete) */
-
-                _db.SaveChanges();
-                return Ok(ApiResponse<object>.Created(dto));
+                return Conflict(ApiResponse<object>.Conflict($"Kode '{obj.jualh_kode}' sudah digunakan. Silakan gunakan kode lain."));
             }
-            catch (Exception ex)
+            _db.SetStsrcFields(obj);
+            _db.Jual_Headers.Add(obj);
+
+            /* start input data detail ke DB (Add, Edit, Delete) */
+            // Jual Detail
+            var temp1 = new TempTableHelper<List<Jual_Detail>>(_db); // buat objek helper untuk menyimpan data sementara
+            Guid temptableGuid1 = Guid.Parse(dto.temptable_detail_id); // ambil id temporary table dari object yang diisi ke tipe data Guid
+            var detailList1 = temp1.GetContentAsObject(temptableGuid1); // ambil data dari temporary table berdasarkan id
+
+            var tobeDeleteList = (from q in _db.Jual_Details where q.stsrc == "A" && q.jualh_id == obj.jualh_id select q).ToList(); // cari data yang akan dihapus
+            foreach (var x in detailList1)
             {
-                return BadRequest(new { message = ex.Message });
+                Jual_Detail dataDetail = null; // inisialisasi object detail
+                if (x.juald_id > 0) // berarti sudah pernah disimpan ke db, lakukan update data
+                {
+                    var query = (from q in tobeDeleteList where q.juald_id == x.juald_id select q);
+                    if (query.Count() > 0) // jika data ditemukan, maka update data tersebut
+                    {
+                        dataDetail = query.First(); // ambil data yang akan diupdate
+                        tobeDeleteList.Remove(dataDetail); // hapus dari list yang akan dihapus
+                    }
+                }
+                else // berarti data baru, buat object baru
+                {
+                    dataDetail = new Jual_Detail();
+                    _db.Jual_Details.Add(dataDetail); // tambahkan ke db
+                    dataDetail.jualh = obj; // set link ke object utama
+                }
+                dataDetail.barang_id = x.barang_id; // set data detailnya
+                dataDetail.juald_qty = x.juald_qty; // set data detailnya
+                dataDetail.juald_harga = x.juald_harga; // set data detailnya
+                dataDetail.juald_disk = x.juald_disk; // set data detailnya
+                _db.SetStsrcFields(dataDetail); // set kolom stsrc, date_created, created_by, date_modified dan modified_by
             }
+            foreach (var x in tobeDeleteList) // hapus data yang sudah tidak ada di temporary table
+            {
+                _db.DeleteStsrc(x); // fungsi untuk menghapus data dengan mengisi stsrc menjadi 'D' (deleted)
+            }
+            /* end input data detail ke DB (Add, Edit, Delete) */
+
+            _db.SaveChanges();
+            return Ok(ApiResponse<object>.Created(dto));
         }
 
         // UPDATE (Untuk Tombol "Edit")
         [HttpPut("put")]
         public IActionResult Put([FromForm] long key, [FromForm] string values)
         {
-            try
+            var oldObj = _db.Jual_Headers.Find(key); // cari terlebih dahulu data sesuai id yang diubah
+            if (oldObj == null)
+                return NotFound(ApiResponse<object>.NotFound());
+            var obj = JsonConvert.DeserializeObject<JualUpdateDto>(values);
+            if (checkDuplicateKode(obj.jualh_kode, obj.jualh_id))
             {
-                var oldObj = _db.Jual_Headers.Find(key); // cari terlebih dahulu data sesuai id yang diubah
-                if (oldObj == null)
-                    return NotFound(ApiResponse<object>.NotFound());
-                var obj = JsonConvert.DeserializeObject<JualUpdateDto>(values);
-                if (checkDuplicateKode(obj.jualh_kode, obj.jualh_id))
-                {
-                    return BadRequest(ApiResponse<object>.BadRequest($"Kode '{obj.jualh_kode}' sudah digunakan. Silakan gunakan kode lain."));
-                }
-                // fungsi untuk copy data dari object edit ke object di database, sebutkan kolom-kolom yang ingin diubah
-                WSMapper.CopyFieldValues(obj, oldObj, "jualh_id,jualh_kode,jualh_date,sales_id,outlet_id");
-                _db.SetStsrcFields(oldObj); // fungsi untuk mengisi stsrc, date_created, created_by, date_modified dan modified_by
-
-                /* start input data detail ke DB (Add, Edit, Delete) */
-                // Barang Outlet
-                var temp1 = new TempTableHelper<List<JualDetailDTO>>(_db); // buat objek helper untuk menyimpan data sementara
-                Guid temptableGuid1 = Guid.Parse(obj.temptable_detail_id); // ambil id temporary table dari object yang diisi ke tipe data Guid
-                var detailList1 = temp1.GetContentAsObject(temptableGuid1); // ambil data dari temporary table berdasarkan id
-
-                var tobeDeleteList = (from q in _db.Jual_Details where q.stsrc == "A" && q.jualh_id == obj.jualh_id select q).ToList(); // cari data yang akan dihapus
-                foreach (var x in detailList1)
-                {
-                    Jual_Detail dataDetail = null; // inisialisasi object detail
-                    if (x.juald_id > 0) // berarti sudah pernah disimpan ke db, lakukan update data
-                    {
-                        var query = (from q in tobeDeleteList where q.juald_id == x.juald_id select q);
-                        if (query.Count() > 0) // jika data ditemukan, maka update data tersebut
-                        {
-                            dataDetail = query.First(); // ambil data yang akan diupdate
-                            tobeDeleteList.Remove(dataDetail); // hapus dari list yang akan dihapus
-                        }
-                    }
-                    else // berarti data baru, buat object baru
-                    {
-                        dataDetail = new Jual_Detail();
-                        _db.Jual_Details.Add(dataDetail); // tambahkan ke db
-                        dataDetail.jualh = oldObj; // set link ke object utama
-                    }
-                    dataDetail.barang_id = x.barang_id; // set data detailnya
-                    dataDetail.juald_qty = x.juald_qty; // set data detailnya
-                    dataDetail.juald_harga = x.juald_harga; // set data detailnya
-                    dataDetail.juald_disk = x.juald_disk; // set data detailnya
-                    _db.SetStsrcFields(dataDetail); // set kolom stsrc, date_created, created_by, date_modified dan modified_by
-                }
-                foreach (var x in tobeDeleteList) // hapus data yang sudah tidak ada di temporary table
-                {
-                    _db.DeleteStsrc(x); // fungsi untuk menghapus data dengan mengisi stsrc menjadi 'D' (deleted)
-                }
-
-                /* end input data detail ke DB (Add, Edit, Delete) */
-
-                _db.SaveChanges(); // simpan perubahan ke database
-                return Ok(ApiResponse<JualUpdateDto>.Ok(obj));
+                return Conflict(ApiResponse<object>.Conflict($"Kode '{obj.jualh_kode}' sudah digunakan. Silakan gunakan kode lain."));
             }
-            catch (Exception ex)
+            // fungsi untuk copy data dari object edit ke object di database, sebutkan kolom-kolom yang ingin diubah
+            WSMapper.CopyFieldValues(obj, oldObj, "jualh_id,jualh_kode,jualh_date,sales_id,outlet_id");
+            _db.SetStsrcFields(oldObj); // fungsi untuk mengisi stsrc, date_created, created_by, date_modified dan modified_by
+
+            /* start input data detail ke DB (Add, Edit, Delete) */
+            // Barang Outlet
+            var temp1 = new TempTableHelper<List<JualDetailDTO>>(_db); // buat objek helper untuk menyimpan data sementara
+            Guid temptableGuid1 = Guid.Parse(obj.temptable_detail_id); // ambil id temporary table dari object yang diisi ke tipe data Guid
+            var detailList1 = temp1.GetContentAsObject(temptableGuid1); // ambil data dari temporary table berdasarkan id
+
+            var tobeDeleteList = (from q in _db.Jual_Details where q.stsrc == "A" && q.jualh_id == obj.jualh_id select q).ToList(); // cari data yang akan dihapus
+            foreach (var x in detailList1)
             {
-                return BadRequest(new { message = ex.Message });
+                Jual_Detail dataDetail = null; // inisialisasi object detail
+                if (x.juald_id > 0) // berarti sudah pernah disimpan ke db, lakukan update data
+                {
+                    var query = (from q in tobeDeleteList where q.juald_id == x.juald_id select q);
+                    if (query.Count() > 0) // jika data ditemukan, maka update data tersebut
+                    {
+                        dataDetail = query.First(); // ambil data yang akan diupdate
+                        tobeDeleteList.Remove(dataDetail); // hapus dari list yang akan dihapus
+                    }
+                }
+                else // berarti data baru, buat object baru
+                {
+                    dataDetail = new Jual_Detail();
+                    _db.Jual_Details.Add(dataDetail); // tambahkan ke db
+                    dataDetail.jualh = oldObj; // set link ke object utama
+                }
+                dataDetail.barang_id = x.barang_id; // set data detailnya
+                dataDetail.juald_qty = x.juald_qty; // set data detailnya
+                dataDetail.juald_harga = x.juald_harga; // set data detailnya
+                dataDetail.juald_disk = x.juald_disk; // set data detailnya
+                _db.SetStsrcFields(dataDetail); // set kolom stsrc, date_created, created_by, date_modified dan modified_by
             }
+            foreach (var x in tobeDeleteList) // hapus data yang sudah tidak ada di temporary table
+            {
+                _db.DeleteStsrc(x); // fungsi untuk menghapus data dengan mengisi stsrc menjadi 'D' (deleted)
+            }
+
+            /* end input data detail ke DB (Add, Edit, Delete) */
+
+            _db.SaveChanges(); // simpan perubahan ke database
+            return Ok(ApiResponse<JualUpdateDto>.Ok(obj));
         }
 
         // DELETE (Untuk Tombol "Delete")
@@ -289,35 +266,28 @@ namespace be_devextreme_starter.Controllers
         [HttpPost("detail/init/jual-detail")]
         public IActionResult InitGridJualDetail([FromForm] long jualh_id)
         {
-            try
+            var jualDetailDtoList = _db.Jual_Details
+            .Join(_db.Barang_Masters, b => b.barang_id, k => k.barang_id, (b, k) => new { b, k })
+            .Where(c => c.b.stsrc == "A" && c.b.jualh_id == jualh_id)
+            .Select(c => new JualDetailDTO
             {
-                var jualDetailDtoList = _db.Jual_Details
-                .Join(_db.Barang_Masters, b => b.barang_id, k => k.barang_id, (b, k) => new { b, k })
-                .Where(c => c.b.stsrc == "A" && c.b.jualh_id == jualh_id)
-                .Select(c => new JualDetailDTO
-                {
-                    jualh_id = c.b.jualh_id,
-                    juald_id = c.b.juald_id,
-                    barang_id = c.b.barang_id,
-                    juald_qty = c.b.juald_qty,
-                    juald_harga = c.b.juald_harga,
-                    juald_disk = c.b.juald_disk,
-                    barang_kode = c.k.barang_kode,
-                    barang_nama = c.k.barang_nama
-                }).ToList();
-                var temp1 = new TempTableHelper<List<JualDetailDTO>>(_db); // buat objek helper untuk menyimpan data sementara
-                var tid1 = temp1.CreateContent(jualDetailDtoList); // buat temporary table dan simpan data ke dalamnya
-                var result = new
-                {
-                    temptable_detail_id = tid1.ToString()
-                };
+                jualh_id = c.b.jualh_id,
+                juald_id = c.b.juald_id,
+                barang_id = c.b.barang_id,
+                juald_qty = c.b.juald_qty,
+                juald_harga = c.b.juald_harga,
+                juald_disk = c.b.juald_disk,
+                barang_kode = c.k.barang_kode,
+                barang_nama = c.k.barang_nama
+            }).ToList();
+            var temp1 = new TempTableHelper<List<JualDetailDTO>>(_db); // buat objek helper untuk menyimpan data sementara
+            var tid1 = temp1.CreateContent(jualDetailDtoList); // buat temporary table dan simpan data ke dalamnya
+            var result = new
+            {
+                temptable_detail_id = tid1.ToString()
+            };
 
-                return Ok(result);
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
+            return Ok(result);
         }
 
         [HttpGet("ref/barang")]

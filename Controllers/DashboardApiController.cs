@@ -31,104 +31,96 @@ namespace be_devextreme_starter.Controllers
         [HttpGet("kpi")]
         public object Get()
         {
-            try
+            var response = new KpiResponseDto();
+
+            // Calculate first and last day of the current month
+            DateTime firstDayOfMonth = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
+            DateTime lastDayOfMonth = firstDayOfMonth.AddMonths(1).AddDays(-1);
+
+            // Get all valid header transactions for the current month
+            var headerTransactionOfCurrentMonth = _db.Jual_Headers
+                .Join(_db.Outlet_Masters, h => h.outlet_id, o => o.outlet_id, (h, o) => new { h, o })
+                .Join(_db.Sales_Masters, c => c.h.sales_id, s => s.sales_id, (c, s) => new { c.h, c.o, s })
+                .Where(c => c.h.stsrc == "A" && c.o.stsrc == "A" && c.s.stsrc == "A"
+                    && c.h.jualh_date >= firstDayOfMonth && c.h.jualh_date <= lastDayOfMonth)
+                .Select(c => new
+                {
+                    c.h.jualh_kode,
+                    c.h.jualh_date,
+                    c.o.outlet_nama,
+                    c.s.sales_nama
+                })
+                .ToList();
+
+            // Get all valid detail transactions for the current month
+            var detailTransactionOfCurrentMonth = _db.Jual_Details
+                .Join(_db.Jual_Headers, d => d.jualh_id, h => h.jualh_id, (d, h) => new { d, h })
+                .Join(_db.Barang_Masters, c => c.d.barang_id, b => b.barang_id, (c, b) => new { c.d, c.h, b })
+                .Where(c => c.d.stsrc == "A" && c.h.stsrc == "A" && c.b.stsrc == "A"
+                    && c.h.jualh_date >= firstDayOfMonth && c.h.jualh_date <= lastDayOfMonth)
+                .Select(c => new
+                {
+                    c.h.jualh_kode,
+                    c.h.jualh_date,
+                    c.d.juald_harga,
+                    c.d.juald_qty,
+                    c.d.juald_disk,
+                    c.b.barang_nama,
+                    total = (c.d.juald_harga * c.d.juald_qty) - c.d.juald_disk
+                })
+                .ToList();
+
+            // Calculate total sales and transaction count for the month
+            response.salesMonth = detailTransactionOfCurrentMonth.Sum(val => val.total);
+            response.transactionsMonth = headerTransactionOfCurrentMonth.Count();
+
+            // Get top 5 products by sales count (with more than 1 sale)
+            var topProduct = detailTransactionOfCurrentMonth
+                .GroupBy(c => c.barang_nama)
+                .Select(g => new { Nama = g.Key, Count = g.Count() })
+                .Where(x => x.Count > 1)
+                .OrderByDescending(x => x.Count)
+                .Take(5)
+                .ToList();
+
+            response.topProducts = new List<string>();
+            foreach (var item in topProduct)
             {
-                var response = new KpiResponseDto();
-
-                // Calculate first and last day of the current month
-                DateTime firstDayOfMonth = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
-                DateTime lastDayOfMonth = firstDayOfMonth.AddMonths(1).AddDays(-1);
-
-                // Get all valid header transactions for the current month
-                var headerTransactionOfCurrentMonth = _db.Jual_Headers
-                    .Join(_db.Outlet_Masters, h => h.outlet_id, o => o.outlet_id, (h, o) => new { h, o })
-                    .Join(_db.Sales_Masters, c => c.h.sales_id, s => s.sales_id, (c, s) => new { c.h, c.o, s })
-                    .Where(c => c.h.stsrc == "A" && c.o.stsrc == "A" && c.s.stsrc == "A"
-                        && c.h.jualh_date >= firstDayOfMonth && c.h.jualh_date <= lastDayOfMonth)
-                    .Select(c => new
-                    {
-                        c.h.jualh_kode,
-                        c.h.jualh_date,
-                        c.o.outlet_nama,
-                        c.s.sales_nama
-                    })
-                    .ToList();
-
-                // Get all valid detail transactions for the current month
-                var detailTransactionOfCurrentMonth = _db.Jual_Details
-                    .Join(_db.Jual_Headers, d => d.jualh_id, h => h.jualh_id, (d, h) => new { d, h })
-                    .Join(_db.Barang_Masters, c => c.d.barang_id, b => b.barang_id, (c, b) => new { c.d, c.h, b })
-                    .Where(c => c.d.stsrc == "A" && c.h.stsrc == "A" && c.b.stsrc == "A"
-                        && c.h.jualh_date >= firstDayOfMonth && c.h.jualh_date <= lastDayOfMonth)
-                    .Select(c => new
-                    {
-                        c.h.jualh_kode,
-                        c.h.jualh_date,
-                        c.d.juald_harga,
-                        c.d.juald_qty,
-                        c.d.juald_disk,
-                        c.b.barang_nama,
-                        total = (c.d.juald_harga * c.d.juald_qty) - c.d.juald_disk
-                    })
-                    .ToList();
-
-                // Calculate total sales and transaction count for the month
-                response.salesMonth = detailTransactionOfCurrentMonth.Sum(val => val.total);
-                response.transactionsMonth = headerTransactionOfCurrentMonth.Count();
-
-                // Get top 5 products by sales count (with more than 1 sale)
-                var topProduct = detailTransactionOfCurrentMonth
-                    .GroupBy(c => c.barang_nama)
-                    .Select(g => new { Nama = g.Key, Count = g.Count() })
-                    .Where(x => x.Count > 1)
-                    .OrderByDescending(x => x.Count)
-                    .Take(5)
-                    .ToList();
-
-                response.topProducts = new List<string>();
-                foreach (var item in topProduct)
-                {
-                    response.topProducts.Add($"{item.Nama} ({item.Count})");
-                }
-
-                // Get top 5 outlets by transaction count (with more than 1 transaction)
-                var topOutlet = headerTransactionOfCurrentMonth
-                    .GroupBy(c => c.outlet_nama)
-                    .Select(g => new { Nama = g.Key, Count = g.Count() })
-                    .Where(x => x.Count > 1)
-                    .OrderByDescending(x => x.Count)
-                    .Take(5)
-                    .ToList();
-
-                response.topOutlets = new List<string>();
-                foreach (var item in topOutlet)
-                {
-                    response.topOutlets.Add($"{item.Nama} ({item.Count})");
-                }
-
-                // Get top 5 sales by transaction count (with more than 1 transaction)
-                var topSales = headerTransactionOfCurrentMonth
-                    .GroupBy(c => c.sales_nama)
-                    .Select(g => new { Nama = g.Key, Count = g.Count() })
-                    .Where(x => x.Count > 1)
-                    .OrderByDescending(x => x.Count)
-                    .Take(5)
-                    .ToList();
-
-                response.topSales = new List<string>();
-                foreach (var item in topSales)
-                {
-                    response.topSales.Add($"{item.Nama} ({item.Count})");
-                }
-
-                // Return successful response
-                return Ok(ApiResponse<KpiResponseDto>.Ok(response));
+                response.topProducts.Add($"{item.Nama} ({item.Count})");
             }
-            catch (Exception ex)
+
+            // Get top 5 outlets by transaction count (with more than 1 transaction)
+            var topOutlet = headerTransactionOfCurrentMonth
+                .GroupBy(c => c.outlet_nama)
+                .Select(g => new { Nama = g.Key, Count = g.Count() })
+                .Where(x => x.Count > 1)
+                .OrderByDescending(x => x.Count)
+                .Take(5)
+                .ToList();
+
+            response.topOutlets = new List<string>();
+            foreach (var item in topOutlet)
             {
-                // Return error response if exception occurs
-                return BadRequest(new { message = ex.Message });
+                response.topOutlets.Add($"{item.Nama} ({item.Count})");
             }
+
+            // Get top 5 sales by transaction count (with more than 1 transaction)
+            var topSales = headerTransactionOfCurrentMonth
+                .GroupBy(c => c.sales_nama)
+                .Select(g => new { Nama = g.Key, Count = g.Count() })
+                .Where(x => x.Count > 1)
+                .OrderByDescending(x => x.Count)
+                .Take(5)
+                .ToList();
+
+            response.topSales = new List<string>();
+            foreach (var item in topSales)
+            {
+                response.topSales.Add($"{item.Nama} ({item.Count})");
+            }
+
+            // Return successful response
+            return Ok(ApiResponse<KpiResponseDto>.Ok(response));   
         }
 
         /// <summary>
