@@ -14,7 +14,7 @@ namespace be_devextreme_starter.Controllers
 {
     [ApiController]
     [Route("api/penjualan")]
-    [AllowAnonymous]
+    [Authorize]
     [IgnoreAntiforgeryToken]
     [Tags("Penjualan")]
     public class PenjualanApiController : Controller
@@ -858,10 +858,7 @@ namespace be_devextreme_starter.Controllers
                         // Kombinasikan error message
                         if (!previewHeaderDto.IsValid)
                         {
-                            foreach (var item in errorMessages)
-                            {
-                                previewHeaderDto.ValidationMessage += (item + " ");
-                            }
+                            previewHeaderDto.ValidationMessage = String.Join(" ", errorMessages);
                         }
 
                         previewHeaderList.Add(previewHeaderDto);

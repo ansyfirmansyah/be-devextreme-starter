@@ -13,7 +13,7 @@ namespace be_devextreme_starter.Controllers
 {
     [ApiController]
     [Route("api/barang")]
-    [AllowAnonymous]
+    [Authorize]
     [IgnoreAntiforgeryToken]
     [Tags("Barang")]
     public class BarangMasterApiController : Controller

@@ -9,7 +9,7 @@ namespace be_devextreme_starter.Controllers
 {
     [ApiController]
     [Route("api/dashboard")]
-    [AllowAnonymous]
+    [Authorize]
     [IgnoreAntiforgeryToken]
     [Tags("Dashboard")]
     public class DashboardApiController : Controller

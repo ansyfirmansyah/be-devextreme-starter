@@ -101,6 +101,8 @@ public partial class DataEntities : DbContext
 
     public virtual DbSet<User_Master> User_Masters { get; set; }
 
+    public virtual DbSet<User_Refresh_Token> User_Refresh_Tokens { get; set; }
+
     public virtual DbSet<WorkflowGlobalParameter> WorkflowGlobalParameters { get; set; }
 
     public virtual DbSet<WorkflowInbox> WorkflowInboxes { get; set; }
@@ -1499,6 +1501,48 @@ public partial class DataEntities : DbContext
             entity.HasOne(d => d.post).WithMany(p => p.User_Masters)
                 .HasForeignKey(d => d.post_id)
                 .HasConstraintName("FK_User_Master_Post");
+        });
+
+        modelBuilder.Entity<User_Refresh_Token>(entity =>
+        {
+            entity.HasKey(e => e.refresh_token_id).HasName("PK__User_Ref__B0A1F7C7D609760D");
+
+            entity.ToTable("User_Refresh_Token");
+
+            entity.HasIndex(e => e.date_expires, "IX_User_Refresh_Token_Expires");
+
+            entity.HasIndex(e => e.stsrc, "IX_User_Refresh_Token_IsActive");
+
+            entity.HasIndex(e => e.refresh_token, "IX_User_Refresh_Token_RefreshToken");
+
+            entity.HasIndex(e => e.user_id, "IX_User_Refresh_Token_UserId");
+
+            entity.Property(e => e.access_token).HasMaxLength(500);
+            entity.Property(e => e.created_by)
+                .HasMaxLength(50)
+                .IsUnicode(false);
+            entity.Property(e => e.date_created).HasColumnType("datetime");
+            entity.Property(e => e.date_expires).HasColumnType("datetime");
+            entity.Property(e => e.date_modified).HasColumnType("datetime");
+            entity.Property(e => e.date_updated).HasColumnType("datetime");
+            entity.Property(e => e.device_info).HasMaxLength(255);
+            entity.Property(e => e.ip_address).HasMaxLength(45);
+            entity.Property(e => e.modified_by)
+                .HasMaxLength(50)
+                .IsUnicode(false);
+            entity.Property(e => e.refresh_token).HasMaxLength(500);
+            entity.Property(e => e.stsrc)
+                .HasMaxLength(1)
+                .IsUnicode(false)
+                .HasDefaultValue("A")
+                .IsFixedLength();
+            entity.Property(e => e.user_id)
+                .HasMaxLength(50)
+                .IsUnicode(false);
+
+            entity.HasOne(d => d.user).WithMany(p => p.User_Refresh_Tokens)
+                .HasForeignKey(d => d.user_id)
+                .HasConstraintName("FK_User_Refresh_Token_User_Id");
         });
 
         modelBuilder.Entity<WorkflowGlobalParameter>(entity =>

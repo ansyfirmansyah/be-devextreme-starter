@@ -14,7 +14,7 @@ namespace be_devextreme_starter.Controllers
 {
     [ApiController]
     [Route("api/sales")]
-    [AllowAnonymous]
+    [Authorize]
     [IgnoreAntiforgeryToken]
     [Tags("Sales")]
     public class SalesMasterApiController : Controller

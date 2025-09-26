@@ -13,7 +13,7 @@ namespace be_devextreme_starter.Controllers
 {
     [ApiController]
     [Route("api/outlets")]
-    [AllowAnonymous]
+    [Authorize]
     [IgnoreAntiforgeryToken]
     [Tags("Outlet")]
     public class OutletMasterApiController : Controller
