@@ -97,6 +97,7 @@ builder.Services.AddValidatorsFromAssemblyContaining<PenjualanValidator>();
 builder.Services.AddValidatorsFromAssemblyContaining<RegisterStep1Validator>();
 builder.Services.AddValidatorsFromAssemblyContaining<RegisterStep2Validator>();
 builder.Services.AddValidatorsFromAssemblyContaining<LoginValidator>();
+builder.Services.AddValidatorsFromAssemblyContaining<ChangePasswordValidator>();
 // Aktifkan validator ke pipeline validasi otomatis
 builder.Services.AddFluentValidationAutoValidation(options =>
 {

@@ -17,6 +17,9 @@ namespace be_devextreme_starter.Controllers
     [Tags("Authentication")]
     public class AuthController : ControllerBase
     {
+        private const int MAX_LOGIN_ATTEMPTS = 5;
+        private const int LOCKOUT_DURATION_MINUTES = 15;
+
         // Dependency injection for database context and configuration
         private readonly DataEntities _db;
         private readonly IConfiguration _config;
@@ -36,19 +39,66 @@ namespace be_devextreme_starter.Controllers
             // Find user by ID and status
             var user = await _db.User_Masters.FirstOrDefaultAsync(u =>
                 u.user_id == loginDto.UserId &&
-                u.stsrc == "A" &&
-                u.user_status == "Aktif");
+                u.stsrc == "A");
 
             if (user == null)
             {
                 return Unauthorized(ApiResponse<object>.Error("User ID atau Password salah.", 401));
             }
 
-            // Validasi password menggunakan BCrypt.Verify, sudah auto validasi salt juga
+            // Cek apakah akun sedang dalam status terblokir
+            if (user.user_status == "Blocked")
+            {
+                var lockoutEndTime = user.user_blocked_date?.AddMinutes(LOCKOUT_DURATION_MINUTES);
+                if (lockoutEndTime > System.DateTime.Now)
+                {
+                    // Masih dalam periode blokir
+                    var remainingTime = Math.Ceiling((lockoutEndTime.Value - System.DateTime.Now).TotalMinutes);
+                    return Unauthorized(ApiResponse<object>.Error($"Akun Anda terkunci. Silakan coba lagi dalam {remainingTime} menit.", 401));
+                }
+                else
+                {
+                    // Periode blokir sudah habis, reset statusnya
+                    user.user_status = "Aktif";
+                    user.user_failed_login_count = 0;
+                    user.user_blocked_date = null;
+                    // save perubahan ini nanti setelah cek password
+                }
+            }
+
+            // Verifikasi Password
             if (!BCrypt.Net.BCrypt.Verify(loginDto.Password, user.user_password))
             {
-                return Unauthorized(ApiResponse<object>.Error("User ID atau Password salah.", 401));
+                // Password salah, increment failed count
+                user.user_failed_login_count++;
+
+                if (user.user_failed_login_count >= MAX_LOGIN_ATTEMPTS)
+                {
+                    // Sudah mencapai batas, blokir akun
+                    user.user_status = "Blocked";
+                    user.user_blocked_date = System.DateTime.Now;
+                    await _db.SaveChangesAsync(); // Simpan status blokir
+                    return Unauthorized(ApiResponse<object>.Error($"Anda telah gagal login {MAX_LOGIN_ATTEMPTS} kali. Akun Anda dikunci selama {LOCKOUT_DURATION_MINUTES} menit.", 401));
+                }
+                else
+                {
+                    await _db.SaveChangesAsync(); // Simpan kenaikan failed count
+                    var attemptsLeft = MAX_LOGIN_ATTEMPTS - user.user_failed_login_count;
+                    return Unauthorized(ApiResponse<object>.Error($"User ID atau Password salah. Sisa percobaan: {attemptsLeft}.", 401));
+                }
             }
+
+            // Login Berhasil
+            // Reset failed count jika ada percobaan gagal sebelumnya
+            if (user.user_failed_login_count > 0)
+            {
+                user.user_failed_login_count = 0;
+                user.user_blocked_date = null; // Pastikan tanggal blokir juga bersih
+            }
+            user.user_last_login = System.DateTime.Now; // simpan riwayat berhasil login
+
+            // Simpan perubahan terakhir (termasuk reset status jika ada)
+            await _db.SaveChangesAsync();
 
             // Generate tokens
             var accessToken = GenerateJwtToken(user);
@@ -61,7 +111,7 @@ namespace be_devextreme_starter.Controllers
                 user_id = user.user_id,
                 access_token = accessToken,
                 refresh_token = refreshToken,
-                date_expires = DateTime.UtcNow.AddDays(_config.GetValue<int>("Jwt:RefreshTokenDurationInDays")),
+                date_expires = System.DateTime.Now.AddDays(_config.GetValue<int>("Jwt:RefreshTokenDurationInDays")),
                 ip_address = ipAddress,
                 device_info = loginDto.DeviceInfo
             };
@@ -99,7 +149,7 @@ namespace be_devextreme_starter.Controllers
                 rt.user_id == userId &&
                 rt.stsrc == "A");
 
-            if (savedRefreshToken == null || savedRefreshToken.date_expires <= DateTime.UtcNow)
+            if (savedRefreshToken == null || savedRefreshToken.date_expires <= System.DateTime.Now)
             {
                 return BadRequest(ApiResponse<object>.BadRequest("Invalid client request"));
             }
