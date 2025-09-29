@@ -1,5 +1,6 @@
 ﻿using be_devextreme_starter.Data.Models;
 using be_devextreme_starter.DTOs;
+using be_devextreme_starter.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
@@ -13,10 +14,12 @@ namespace be_devextreme_starter.Controllers
     public class AccountController : ControllerBase
     {
         private readonly DataEntities _db;
+        private readonly IAuditService _auditService;
 
-        public AccountController(DataEntities context)
+        public AccountController(DataEntities context, IAuditService auditService)
         {
             _db = context;
+            _auditService = auditService;
         }
 
         [HttpPost("change-password")]
@@ -45,7 +48,7 @@ namespace be_devextreme_starter.Controllers
             user.user_password = BCrypt.Net.BCrypt.HashPassword(changePasswordDto.NewPassword);
             user.user_password_lastchange = System.DateTime.Now; // Update tanggal ganti password
 
-            _db.SetStsrcFields(user); // Mengupdate modified_by dan date_modified
+            _auditService.SetStsrcFields(user); // Mengupdate modified_by dan date_modified
             await _db.SaveChangesAsync();
 
             return Ok(ApiResponse<object>.Ok(null, "Password berhasil diubah."));

@@ -1,6 +1,7 @@
 ﻿using be_devextreme_starter.Data;
 using be_devextreme_starter.Data.Models;
 using be_devextreme_starter.DTOs;
+using be_devextreme_starter.Services;
 using DevExtreme.AspNet.Data;
 using DevExtreme.AspNet.Mvc;
 using FluentValidation;
@@ -22,11 +23,13 @@ namespace be_devextreme_starter.Controllers
         private readonly DataEntities _db;
         private readonly IWebHostEnvironment _env;
         private readonly IValidator<JualUpdateDto> _validator;
-        public PenjualanApiController(DataEntities context, IWebHostEnvironment env, IValidator<JualUpdateDto> validator)
+        private readonly IAuditService _auditService;
+        public PenjualanApiController(DataEntities context, IWebHostEnvironment env, IValidator<JualUpdateDto> validator, IAuditService auditService)
         {
             this._db = context;
             this._env = env;
             this._validator = validator;
+            this._auditService = auditService;
         }
 
         // GET: /api/penjualan/get
@@ -66,7 +69,7 @@ namespace be_devextreme_starter.Controllers
             var obj = new Jual_Header();
             // Copy value dari DTO ke Object yang akan disimpan ke db, kecuali field tambahan
             WSMapper.CopyFieldValues(dto, obj, "jualh_kode,jualh_date,sales_id,outlet_id");
-            _db.SetStsrcFields(obj);
+            _auditService.SetStsrcFields(obj);
             _db.Jual_Headers.Add(obj);
 
             /* start input data detail ke DB (Add, Edit, Delete) */
@@ -98,11 +101,11 @@ namespace be_devextreme_starter.Controllers
                 dataDetail.juald_qty = x.juald_qty; // set data detailnya
                 dataDetail.juald_harga = x.juald_harga; // set data detailnya
                 dataDetail.juald_disk = x.juald_disk; // set data detailnya
-                _db.SetStsrcFields(dataDetail); // set kolom stsrc, date_created, created_by, date_modified dan modified_by
+                _auditService.SetStsrcFields(dataDetail); // set kolom stsrc, date_created, created_by, date_modified dan modified_by
             }
             foreach (var x in tobeDeleteList) // hapus data yang sudah tidak ada di temporary table
             {
-                _db.DeleteStsrc(x); // fungsi untuk menghapus data dengan mengisi stsrc menjadi 'D' (deleted)
+                _auditService.DeleteStsrc(x); // fungsi untuk menghapus data dengan mengisi stsrc menjadi 'D' (deleted)
             }
             /* end input data detail ke DB (Add, Edit, Delete) */
 
@@ -128,7 +131,7 @@ namespace be_devextreme_starter.Controllers
 
             // fungsi untuk copy data dari object edit ke object di database, sebutkan kolom-kolom yang ingin diubah
             WSMapper.CopyFieldValues(obj, oldObj, "jualh_id,jualh_kode,jualh_date,sales_id,outlet_id");
-            _db.SetStsrcFields(oldObj); // fungsi untuk mengisi stsrc, date_created, created_by, date_modified dan modified_by
+            _auditService.SetStsrcFields(oldObj); // fungsi untuk mengisi stsrc, date_created, created_by, date_modified dan modified_by
 
             /* start input data detail ke DB (Add, Edit, Delete) */
             // Barang Outlet
@@ -159,11 +162,11 @@ namespace be_devextreme_starter.Controllers
                 dataDetail.juald_qty = x.juald_qty; // set data detailnya
                 dataDetail.juald_harga = x.juald_harga; // set data detailnya
                 dataDetail.juald_disk = x.juald_disk; // set data detailnya
-                _db.SetStsrcFields(dataDetail); // set kolom stsrc, date_created, created_by, date_modified dan modified_by
+                _auditService.SetStsrcFields(dataDetail); // set kolom stsrc, date_created, created_by, date_modified dan modified_by
             }
             foreach (var x in tobeDeleteList) // hapus data yang sudah tidak ada di temporary table
             {
-                _db.DeleteStsrc(x); // fungsi untuk menghapus data dengan mengisi stsrc menjadi 'D' (deleted)
+                _auditService.DeleteStsrc(x); // fungsi untuk menghapus data dengan mengisi stsrc menjadi 'D' (deleted)
             }
 
             /* end input data detail ke DB (Add, Edit, Delete) */
@@ -177,12 +180,12 @@ namespace be_devextreme_starter.Controllers
         public IActionResult Delete([FromForm] long key)
         {
             var obj = _db.Jual_Headers.Find(key); // cari data berdasarkan id yang diberikan
-            _db.DeleteStsrc(obj); // fungsi untuk menghapus data dengan mengisi stsrc menjadi 'D' (deleted)
+            _auditService.DeleteStsrc(obj); // fungsi untuk menghapus data dengan mengisi stsrc menjadi 'D' (deleted)
 
             // Hapus data detail
             foreach (var detail in (obj.Jual_Details.Where(x => x.stsrc == "A")))
             {
-                _db.DeleteStsrc(detail);
+                _auditService.DeleteStsrc(detail);
             }
 
             _db.SaveChanges(); // simpan perubahan ke database
@@ -1027,7 +1030,7 @@ namespace be_devextreme_starter.Controllers
                             sales_id = header.Sales_id.GetValueOrDefault(),
                             outlet_id = header.Outlet_id.GetValueOrDefault(),
                         };
-                        _db.SetStsrcFields(newData);
+                        _auditService.SetStsrcFields(newData);
                         headerToCreate.Add(newData);
                     }
 
@@ -1066,7 +1069,7 @@ namespace be_devextreme_starter.Controllers
                             juald_qty = detail.Juald_qty,
                             juald_disk = detail.Juald_disk.GetValueOrDefault()
                         };
-                        _db.SetStsrcFields(newData);
+                        _auditService.SetStsrcFields(newData);
                         detailToCreate.Add(newData);
                     }
 

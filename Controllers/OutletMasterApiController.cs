@@ -1,5 +1,6 @@
 ﻿using be_devextreme_starter.Data.Models;
 using be_devextreme_starter.DTOs;
+using be_devextreme_starter.Services;
 using DevExtreme.AspNet.Data;
 using DevExtreme.AspNet.Data.ResponseModel;
 using DevExtreme.AspNet.Mvc;
@@ -21,10 +22,12 @@ namespace be_devextreme_starter.Controllers
         #region
         private DataEntities _db;
         private IWebHostEnvironment _env;
-        public OutletMasterApiController(DataEntities context, IWebHostEnvironment env)
+        private readonly IAuditService _auditService;
+        public OutletMasterApiController(DataEntities context, IWebHostEnvironment env, IAuditService auditService)
         {
             this._db = context;
             this._env = env;
+            this._auditService = auditService;
         }
         #endregion
 
@@ -53,7 +56,7 @@ namespace be_devextreme_starter.Controllers
             {
                 return BadRequest(new { error = $"Kode '{newOutlet.outlet_kode}' sudah digunakan. Silakan gunakan kode lain." });
             }
-            _db.SetStsrcFields(newOutlet);
+            _auditService.SetStsrcFields(newOutlet);
 
             _db.Outlet_Masters.Add(newOutlet);
             await _db.SaveChangesAsync();
@@ -73,7 +76,7 @@ namespace be_devextreme_starter.Controllers
             {
                 return BadRequest(new { error = $"Kode '{outlet.outlet_kode}' sudah digunakan. Silakan gunakan kode lain." });
             }
-            _db.SetStsrcFields(outlet);
+            _auditService.SetStsrcFields(outlet);
 
             await _db.SaveChangesAsync();
             return Ok(ApiResponse<Outlet_Master>.Ok(outlet));
@@ -93,7 +96,7 @@ namespace be_devextreme_starter.Controllers
                 return BadRequest(new { error = resp });
             }
 
-            _db.DeleteStsrc(outlet);
+            _auditService.DeleteStsrc(outlet);
             await _db.SaveChangesAsync();
             return Ok(ApiResponse<object>.Ok(null, "data deleted"));
         }

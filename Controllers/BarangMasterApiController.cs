@@ -1,6 +1,7 @@
 ﻿using be_devextreme_starter.Data;
 using be_devextreme_starter.Data.Models;
 using be_devextreme_starter.DTOs;
+using be_devextreme_starter.Services;
 using DevExpress.ClipboardSource.SpreadsheetML;
 using DevExpress.CodeParser;
 using DevExtreme.AspNet.Data;
@@ -21,10 +22,12 @@ namespace be_devextreme_starter.Controllers
         #region
         private DataEntities _db;
         private IWebHostEnvironment _env;
-        public BarangMasterApiController(DataEntities context, IWebHostEnvironment env)
+        private readonly IAuditService _auditService;
+        public BarangMasterApiController(DataEntities context, IWebHostEnvironment env, IAuditService auditService)
         {
             this._db = context;
             this._env = env;
+            this._auditService = auditService;
         }
         #endregion
 
@@ -69,7 +72,7 @@ namespace be_devextreme_starter.Controllers
                 {
                     return BadRequest(new { message = $"Kode '{dto.barang_kode}' sudah digunakan. Silakan gunakan kode lain." });
                 }
-                _db.SetStsrcFields(obj);
+                _auditService.SetStsrcFields(obj);
                 _db.Barang_Masters.Add(obj);
 
                 /* start input data detail ke DB (Add, Edit, Delete) */
@@ -98,11 +101,11 @@ namespace be_devextreme_starter.Controllers
                         dataDetail.barang = obj; // set link ke object utama
                     }
                     dataDetail.outlet_id = x.outlet_id; // set data detailnya
-                    _db.SetStsrcFields(dataDetail); // set kolom stsrc, date_created, created_by, date_modified dan modified_by
+                    _auditService.SetStsrcFields(dataDetail); // set kolom stsrc, date_created, created_by, date_modified dan modified_by
                 }
                 foreach (var x in tobeDeleteList) // hapus data yang sudah tidak ada di temporary table
                 {
-                    _db.DeleteStsrc(x); // fungsi untuk menghapus data dengan mengisi stsrc menjadi 'D' (deleted)
+                    _auditService.DeleteStsrc(x); // fungsi untuk menghapus data dengan mengisi stsrc menjadi 'D' (deleted)
                 }
 
                 // Barang Diskon
@@ -137,11 +140,11 @@ namespace be_devextreme_starter.Controllers
                         return BadRequest(new { message = $"Nilai Diskon tidak boleh lebih besar dari harga" });
                     }
 
-                    _db.SetStsrcFields(dataDetail); // set kolom stsrc, date_created, created_by, date_modified dan modified_by
+                    _auditService.SetStsrcFields(dataDetail); // set kolom stsrc, date_created, created_by, date_modified dan modified_by
                 }
                 foreach (var x in tobeDeleteList) // hapus data yang sudah tidak ada di temporary table
                 {
-                    _db.DeleteStsrc(x); // fungsi untuk menghapus data dengan mengisi stsrc menjadi 'D' (deleted)
+                    _auditService.DeleteStsrc(x); // fungsi untuk menghapus data dengan mengisi stsrc menjadi 'D' (deleted)
                 }
                 /* end input data detail ke DB (Add, Edit, Delete) */
 
@@ -170,7 +173,7 @@ namespace be_devextreme_starter.Controllers
                 }
                 // fungsi untuk copy data dari object edit ke object di database, sebutkan kolom-kolom yang ingin diubah
                 WSMapper.CopyFieldValues(obj, oldObj, "barang_id,barang_kode,barang_nama,barang_harga,klas_id");
-                _db.SetStsrcFields(oldObj); // fungsi untuk mengisi stsrc, date_created, created_by, date_modified dan modified_by
+                _auditService.SetStsrcFields(oldObj); // fungsi untuk mengisi stsrc, date_created, created_by, date_modified dan modified_by
 
                 /* start input data detail ke DB (Add, Edit, Delete) */
                 // Barang Outlet
@@ -198,11 +201,11 @@ namespace be_devextreme_starter.Controllers
                         dataDetail.barang= oldObj; // set link ke object utama
                     }
                     dataDetail.outlet_id = x.outlet_id; // set data detailnya
-                    _db.SetStsrcFields(dataDetail); // set kolom stsrc, date_created, created_by, date_modified dan modified_by
+                    _auditService.SetStsrcFields(dataDetail); // set kolom stsrc, date_created, created_by, date_modified dan modified_by
                 }
                 foreach (var x in tobeDeleteList) // hapus data yang sudah tidak ada di temporary table
                 {
-                    _db.DeleteStsrc(x); // fungsi untuk menghapus data dengan mengisi stsrc menjadi 'D' (deleted)
+                    _auditService.DeleteStsrc(x); // fungsi untuk menghapus data dengan mengisi stsrc menjadi 'D' (deleted)
                 }
 
                 // Barang Diskon
@@ -236,11 +239,11 @@ namespace be_devextreme_starter.Controllers
                     {
                         return BadRequest(new { message = $"Nilai Diskon tidak boleh lebih besar dari harga" });
                     }
-                    _db.SetStsrcFields(dataDetail); // set kolom stsrc, date_created, created_by, date_modified dan modified_by
+                    _auditService.SetStsrcFields(dataDetail); // set kolom stsrc, date_created, created_by, date_modified dan modified_by
                 }
                 foreach (var x in tobeDeleteList2) // hapus data yang sudah tidak ada di temporary table
                 {
-                    _db.DeleteStsrc(x); // fungsi untuk menghapus data dengan mengisi stsrc menjadi 'D' (deleted)
+                    _auditService.DeleteStsrc(x); // fungsi untuk menghapus data dengan mengisi stsrc menjadi 'D' (deleted)
                 }
                 /* end input data detail ke DB (Add, Edit, Delete) */
 
@@ -260,17 +263,17 @@ namespace be_devextreme_starter.Controllers
             try
             {
                 var obj = _db.Barang_Masters.Find(key); // cari data berdasarkan id yang diberikan
-                _db.DeleteStsrc(obj); // fungsi untuk menghapus data dengan mengisi stsrc menjadi 'D' (deleted)
+                _auditService.DeleteStsrc(obj); // fungsi untuk menghapus data dengan mengisi stsrc menjadi 'D' (deleted)
 
                 // Hapus data outlet
                 foreach (var outlet in (obj.Barang_Outlets.Where(x => x.stsrc == "A")))
                 {
-                    _db.DeleteStsrc(outlet);
+                    _auditService.DeleteStsrc(outlet);
                 }
                 // Hapus data diskon
                 foreach (var diskon in (obj.Barang_Diskons.Where(x => x.stsrc == "A")))
                 {
-                    _db.DeleteStsrc(diskon);
+                    _auditService.DeleteStsrc(diskon);
                 }
                 _db.SaveChanges(); // simpan perubahan ke database
                 return Ok(ApiResponse<object>.Ok(null, "data deleted"));

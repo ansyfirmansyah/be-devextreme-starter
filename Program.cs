@@ -2,6 +2,7 @@ using be_devextreme_starter.Data.Models;
 using be_devextreme_starter.DTOs;
 using be_devextreme_starter.Middleware;
 using be_devextreme_starter.Reports;
+using be_devextreme_starter.Services;
 using be_devextreme_starter.Validators;
 using DevExpress.AspNetCore;
 using DevExpress.AspNetCore.Reporting;
@@ -104,6 +105,9 @@ builder.Services.AddFluentValidationAutoValidation(options =>
     // Menonaktifkan validasi bawaan (Data Annotations, dll)
     options.DisableDataAnnotationsValidation = true;
 });
+
+// Menambahkan audit service untuk kebutuhan set created by atau modified by
+builder.Services.AddScoped<IAuditService, AuditService>();
 
 // Konfigurasi DevExtreme Reporting
 builder.Services.AddScoped<IReportProvider, CustomReportProvider>();

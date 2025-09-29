@@ -1,6 +1,7 @@
 ﻿using be_devextreme_starter.Data;
 using be_devextreme_starter.Data.Models;
 using be_devextreme_starter.DTOs;
+using be_devextreme_starter.Services;
 using DevExtreme.AspNet.Data;
 using DevExtreme.AspNet.Mvc;
 using Microsoft.AspNetCore.Authorization;
@@ -19,10 +20,12 @@ namespace be_devextreme_starter.Areas.API.Controllers
         #region
         private DataEntities _db;
         private IWebHostEnvironment _env;
-        public KlasifikasiMasterApiController(DataEntities context, IWebHostEnvironment env)
+        private readonly IAuditService _auditService;
+        public KlasifikasiMasterApiController(DataEntities context, IWebHostEnvironment env, IAuditService auditService)
         {
             this._db = context;
             this._env = env;
+            this._auditService = auditService;
         }
         #endregion
 
@@ -65,7 +68,7 @@ namespace be_devextreme_starter.Areas.API.Controllers
                 {
                     return BadRequest(new { message = $"Kode '{newData.klas_kode}' sudah digunakan. Silakan gunakan kode lain." });
                 }
-                _db.SetStsrcFields(newData);
+                _auditService.SetStsrcFields(newData);
 
                 _db.Klasifikasi_Masters.Add(newData);
                 _db.SaveChanges();
@@ -93,7 +96,7 @@ namespace be_devextreme_starter.Areas.API.Controllers
                 }
                 // fungsi untuk copy data dari object edit ke object di database, sebutkan kolom-kolom yang ingin diubah
                 WSMapper.CopyFieldValues(dto, oldObj, "klas_id,klas_kode,klas_nama,klas_parent_id");
-                _db.SetStsrcFields(oldObj); // fungsi untuk mengisi stsrc, date_created, created_by, date_modified dan modified_by
+                _auditService.SetStsrcFields(oldObj); // fungsi untuk mengisi stsrc, date_created, created_by, date_modified dan modified_by
 
                 _db.SaveChanges(); // simpan perubahan ke database
                 return Ok(ApiResponse<KlasifikasiUpdateDto>.Ok(dto));
@@ -129,7 +132,7 @@ namespace be_devextreme_starter.Areas.API.Controllers
                 foreach (var id in listIds)
                 {
                     var obj = _db.Klasifikasi_Masters.Find(id);
-                    _db.DeleteStsrc(obj);
+                    _auditService.DeleteStsrc(obj);
                 }
                 _db.SaveChanges(); // simpan perubahan ke database
                 return Ok(ApiResponse<object>.Ok(null, "data deleted"));

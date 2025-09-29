@@ -1,6 +1,7 @@
 ﻿using be_devextreme_starter.Data;
 using be_devextreme_starter.Data.Models;
 using be_devextreme_starter.DTOs;
+using be_devextreme_starter.Services;
 using DevExtreme.AspNet.Data;
 using DevExtreme.AspNet.Mvc;
 using FluentValidation;
@@ -22,11 +23,13 @@ namespace be_devextreme_starter.Controllers
         private readonly DataEntities _db;
         private readonly IWebHostEnvironment _env;
         private readonly IValidator<SalesUpdateDto> _salesValidator;
-        public SalesMasterApiController(DataEntities context, IWebHostEnvironment env, IValidator<SalesUpdateDto> salesValidator)
+        private readonly IAuditService _auditService;
+        public SalesMasterApiController(DataEntities context, IWebHostEnvironment env, IValidator<SalesUpdateDto> salesValidator, IAuditService auditService)
         {
             this._db = context;
             this._env = env;
             this._salesValidator = salesValidator;
+            this._auditService = auditService;
         }
 
         // GET: /api/sales/get
@@ -70,7 +73,7 @@ namespace be_devextreme_starter.Controllers
 
             var newData = new Sales_Master();
             WSMapper.CopyFieldValues(dto, newData, "sales_kode,sales_nama,outlet_id");
-            _db.SetStsrcFields(newData);
+            _auditService.SetStsrcFields(newData);
 
             _db.Sales_Masters.Add(newData);
             _db.SaveChanges();
@@ -98,7 +101,7 @@ namespace be_devextreme_starter.Controllers
                 }
                 // fungsi untuk copy data dari object edit ke object di database, sebutkan kolom-kolom yang ingin diubah
                 WSMapper.CopyFieldValues(dto, oldObj, "sales_id,sales_kode,sales_nama,outlet_id");
-                _db.SetStsrcFields(oldObj); // fungsi untuk mengisi stsrc, date_created, created_by, date_modified dan modified_by
+                _auditService.SetStsrcFields(oldObj); // fungsi untuk mengisi stsrc, date_created, created_by, date_modified dan modified_by
 
                 _db.SaveChanges(); // simpan perubahan ke database
                 return Ok(ApiResponse<SalesUpdateDto>.Ok(dto));
@@ -125,7 +128,7 @@ namespace be_devextreme_starter.Controllers
                     return BadRequest(new { message = resp });
                 }
 
-                _db.DeleteStsrc(existingData);
+                _auditService.DeleteStsrc(existingData);
                 _db.SaveChanges();
                 return Ok(ApiResponse<object>.Ok(null, "data deleted"));
             }
@@ -329,7 +332,7 @@ namespace be_devextreme_starter.Controllers
                             sales_nama = saleDto.sales_nama,
                             outlet_id = outlet.outlet_id
                         };
-                        _db.SetStsrcFields(newSale);
+                        _auditService.SetStsrcFields(newSale);
                         salesToCreate.Add(newSale);
                     }
 

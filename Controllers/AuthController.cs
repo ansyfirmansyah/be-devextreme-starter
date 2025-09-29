@@ -1,5 +1,6 @@
 ﻿using be_devextreme_starter.Data.Models;
 using be_devextreme_starter.DTOs;
+using be_devextreme_starter.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -23,11 +24,13 @@ namespace be_devextreme_starter.Controllers
         // Dependency injection for database context and configuration
         private readonly DataEntities _db;
         private readonly IConfiguration _config;
+        private readonly IAuditService _auditService;
 
-        public AuthController(DataEntities context, IConfiguration config)
+        public AuthController(DataEntities context, IConfiguration config, IAuditService auditService)
         {
             _db = context;
             _config = config;
+            _auditService = auditService;
         }
 
         /// <summary>
@@ -115,7 +118,7 @@ namespace be_devextreme_starter.Controllers
                 ip_address = ipAddress,
                 device_info = loginDto.DeviceInfo
             };
-            _db.SetStsrcFields(newRefreshToken);
+            _auditService.SetStsrcFields(newRefreshToken);
             _db.User_Refresh_Tokens.Add(newRefreshToken);
             await _db.SaveChangesAsync();
 
@@ -167,7 +170,7 @@ namespace be_devextreme_starter.Controllers
             // Update refresh token in database
             savedRefreshToken.refresh_token = newRefreshToken;
             savedRefreshToken.access_token = newAccessToken;
-            _db.SetStsrcFields(savedRefreshToken);
+            _auditService.SetStsrcFields(savedRefreshToken);
             await _db.SaveChangesAsync();
 
             return Ok(ApiResponse<object>.Ok(new
@@ -190,7 +193,7 @@ namespace be_devextreme_starter.Controllers
 
             if (savedRefreshToken != null)
             {
-                _db.DeleteStsrc(savedRefreshToken);
+                _auditService.DeleteStsrc(savedRefreshToken);
                 await _db.SaveChangesAsync();
             }
 
@@ -248,7 +251,7 @@ namespace be_devextreme_starter.Controllers
                 user_agent = step2Dto.DeviceInfo
             };
 
-            _db.SetStsrcFields(newUser);
+            _auditService.SetStsrcFields(newUser);
             _db.User_Masters.Add(newUser);
             await _db.SaveChangesAsync();
 
