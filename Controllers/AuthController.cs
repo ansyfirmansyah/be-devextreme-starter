@@ -1,8 +1,5 @@
-﻿using Azure.Core;
-using be_devextreme_starter.Data.Models;
+﻿using be_devextreme_starter.Data.Models;
 using be_devextreme_starter.DTOs;
-using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -18,8 +15,9 @@ namespace be_devextreme_starter.Controllers
     [Route("api/auth")]
     [AllowAnonymous] // Controller ini boleh diakses tanpa login
     [Tags("Authentication")]
-    public class AuthController: ControllerBase
+    public class AuthController : ControllerBase
     {
+        // Dependency injection for database context and configuration
         private readonly DataEntities _db;
         private readonly IConfiguration _config;
 
@@ -29,26 +27,35 @@ namespace be_devextreme_starter.Controllers
             _config = config;
         }
 
+        /// <summary>
+        /// Login endpoint: Validates user credentials and returns JWT & refresh token.
+        /// </summary>
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginDto loginDto)
         {
-            var user = await _db.User_Masters.FirstOrDefaultAsync(u => u.user_id == loginDto.UserId && u.stsrc == "A" && u.user_status == "Aktif");
+            // Find user by ID and status
+            var user = await _db.User_Masters.FirstOrDefaultAsync(u =>
+                u.user_id == loginDto.UserId &&
+                u.stsrc == "A" &&
+                u.user_status == "Aktif");
 
             if (user == null)
             {
                 return Unauthorized(ApiResponse<object>.Error("User ID atau Password salah.", 401));
             }
 
+            // Validate password
             var hashedPassword = ComputeSha256Hash(loginDto.Password);
             if (user.user_password != hashedPassword)
             {
                 return Unauthorized(ApiResponse<object>.Error("User ID atau Password salah.", 401));
             }
 
+            // Generate tokens
             var accessToken = GenerateJwtToken(user);
             var refreshToken = GenerateRefreshToken();
 
-            // Simpan refresh token ke database
+            // Save refresh token to database
             var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
             var newRefreshToken = new User_Refresh_Token
             {
@@ -72,6 +79,9 @@ namespace be_devextreme_starter.Controllers
             }));
         }
 
+        /// <summary>
+        /// Refresh endpoint: Issues new JWT and refresh token if the old ones are valid.
+        /// </summary>
         [HttpPost("refresh")]
         public async Task<IActionResult> Refresh([FromBody] RefreshTokenRequestDto request)
         {
@@ -83,7 +93,7 @@ namespace be_devextreme_starter.Controllers
                 return BadRequest(ApiResponse<object>.BadRequest("Invalid token: User identifier not found."));
             }
 
-            // Cari refresh token di tabel baru
+            // Find refresh token in database
             var savedRefreshToken = await _db.User_Refresh_Tokens.FirstOrDefaultAsync(rt =>
                 rt.refresh_token == request.RefreshToken &&
                 rt.access_token == request.AccessToken &&
@@ -101,22 +111,30 @@ namespace be_devextreme_starter.Controllers
                 return BadRequest(ApiResponse<object>.BadRequest("Invalid client request"));
             }
 
+            // Generate new tokens
             var newAccessToken = GenerateJwtToken(user);
             var newRefreshToken = GenerateRefreshToken();
 
-            // Perbarui refresh token yang lama dengan yang baru
+            // Update refresh token in database
             savedRefreshToken.refresh_token = newRefreshToken;
             savedRefreshToken.access_token = newAccessToken;
             _db.SetStsrcFields(savedRefreshToken);
             await _db.SaveChangesAsync();
 
-            return Ok(ApiResponse<object>.Ok(new { accessToken = newAccessToken, refreshToken = newRefreshToken }));
+            return Ok(ApiResponse<object>.Ok(new
+            {
+                accessToken = newAccessToken,
+                refreshToken = newRefreshToken
+            }));
         }
 
+        /// <summary>
+        /// Logout endpoint: Deletes the refresh token from database.
+        /// </summary>
         [HttpPost("logout")]
         public async Task<IActionResult> Logout([FromBody] RefreshTokenRequestDto request)
         {
-            // Cari refresh token yang dikirimkan oleh klien
+            // Find refresh token in database
             var savedRefreshToken = await _db.User_Refresh_Tokens.FirstOrDefaultAsync(rt =>
                 rt.refresh_token == request.RefreshToken &&
                 rt.stsrc == "A");
@@ -130,26 +148,28 @@ namespace be_devextreme_starter.Controllers
             return Ok(ApiResponse<object>.Ok(null, "Logout berhasil."));
         }
 
+        /// <summary>
+        /// Register endpoint: Creates a new user if UserId is not already taken.
+        /// </summary>
         [HttpPost("register")]
         public async Task<IActionResult> Register([FromBody] RegisterDto registerDto)
         {
-            // 1. Cek apakah user sudah ada
+            // Check if user already exists
             if (await _db.User_Masters.AnyAsync(u => u.user_id == registerDto.UserId))
             {
                 return Conflict(ApiResponse<object>.Conflict("User ID sudah terdaftar."));
             }
 
-            // 2. Buat objek user baru
+            // Create new user object
             var newUser = new User_Master
             {
                 user_id = registerDto.UserId,
                 user_nama = registerDto.UserName,
                 user_email = registerDto.Email,
-                // 3. HASH password sebelum disimpan!
-                user_password = ComputeSha256Hash(registerDto.Password),
-                stsrc = "A", // Atur status default
+                user_password = ComputeSha256Hash(registerDto.Password), // Hash password
+                stsrc = "A",
                 date_created = DateTime.Now,
-                created_by = "SYSTEM_REGISTER" // Atau sumber registrasi lainnya
+                created_by = "SYSTEM_REGISTER"
             };
 
             _db.User_Masters.Add(newUser);
@@ -160,32 +180,35 @@ namespace be_devextreme_starter.Controllers
                 "Registrasi berhasil."));
         }
 
-        // Method helper untuk membuat token
+        /// <summary>
+        /// Helper: Generate JWT access token for a user.
+        /// </summary>
         private string GenerateJwtToken(User_Master user)
         {
             var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"]));
             var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
 
-            // "Claims" adalah informasi tentang user yang kita simpan di dalam token
             var claims = new[]
             {
                 new Claim(JwtRegisteredClaimNames.Sub, user.user_id),
                 new Claim(JwtRegisteredClaimNames.Name, user.user_nama),
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
-                // Anda bisa menambahkan claim lain, misalnya role
-                // new Claim(ClaimTypes.Role, user.user_main_role)
+                // Add more claims if needed
             };
 
             var token = new JwtSecurityToken(
                 issuer: _config["Jwt:Issuer"],
                 audience: _config["Jwt:Audience"],
                 claims: claims,
-                expires: DateTime.Now.AddMinutes(_config.GetValue<int>("Jwt:AccessTokenDurationInMinutes")), // masa berlaku token sesuai env
+                expires: DateTime.Now.AddMinutes(_config.GetValue<int>("Jwt:AccessTokenDurationInMinutes")),
                 signingCredentials: credentials);
 
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
 
+        /// <summary>
+        /// Helper: Generate a secure random refresh token.
+        /// </summary>
         private string GenerateRefreshToken()
         {
             var randomNumber = new byte[32];
@@ -196,6 +219,9 @@ namespace be_devextreme_starter.Controllers
             }
         }
 
+        /// <summary>
+        /// Helper: Extract ClaimsPrincipal from expired JWT token.
+        /// </summary>
         private ClaimsPrincipal GetPrincipalFromExpiredToken(string token)
         {
             var tokenValidationParameters = new TokenValidationParameters
@@ -204,7 +230,7 @@ namespace be_devextreme_starter.Controllers
                 ValidateIssuer = false,
                 ValidateIssuerSigningKey = true,
                 IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"])),
-                ValidateLifetime = false // <-- Penting: kita terima token yang sudah expired
+                ValidateLifetime = false // Accept expired tokens
             };
 
             var tokenHandler = new JwtSecurityTokenHandler();
@@ -216,23 +242,22 @@ namespace be_devextreme_starter.Controllers
             return principal;
         }
 
+        /// <summary>
+        /// Helper: Compute SHA256 hash for password.
+        /// </summary>
         private string ComputeSha256Hash(string rawData)
         {
-            // Create a SHA256
             using (SHA256 sha256Hash = SHA256.Create())
             {
-                // ComputeHash - returns byte array
                 byte[] bytes = sha256Hash.ComputeHash(Encoding.UTF8.GetBytes(rawData));
-
-                // Convert byte array to a string
                 StringBuilder builder = new StringBuilder();
                 for (int i = 0; i < bytes.Length; i++)
                 {
-                    builder.Append(bytes[i].ToString("x2")); // "x2" untuk format hexadecimal
+                    // "x2" untuk format hexadecimal
+                    builder.Append(bytes[i].ToString("x2"));
                 }
                 return builder.ToString();
             }
         }
-
     }
 }

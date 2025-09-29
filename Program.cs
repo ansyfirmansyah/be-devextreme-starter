@@ -1,5 +1,3 @@
-using be_devextreme_starter.Controllers;
-using be_devextreme_starter.Data;
 using be_devextreme_starter.Data.Models;
 using be_devextreme_starter.Middleware;
 using be_devextreme_starter.Reports;
