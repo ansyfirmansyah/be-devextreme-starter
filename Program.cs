@@ -1,4 +1,5 @@
 using be_devextreme_starter.Data.Models;
+using be_devextreme_starter.DTOs;
 using be_devextreme_starter.Middleware;
 using be_devextreme_starter.Reports;
 using be_devextreme_starter.Validators;
@@ -9,6 +10,7 @@ using FluentValidation;
 using FluentValidation.AspNetCore;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -67,9 +69,34 @@ builder.Services
     })
     .AddNewtonsoftJson();
 
+// Mengubah format response default dot net (ketika ada invalid model / dto)
+// menjadi format response sesuai api response template yang sudah kita buat
+builder.Services.Configure<ApiBehaviorOptions>(options =>
+{
+    options.InvalidModelStateResponseFactory = context =>
+    {
+        // Ambil semua pesan error dari ModelState
+        var errorMessages = context.ModelState.Values
+            .SelectMany(v => v.Errors)
+            .Select(e => e.ErrorMessage)
+            .ToList();
+
+        // Gabungkan semua pesan error menjadi satu string
+        var combinedErrorMessage = string.Join(" ", errorMessages);
+
+        // Buat response kustom menggunakan ApiResponse Anda
+        var apiResponse = ApiResponse<object>.BadRequest(combinedErrorMessage);
+
+        return new BadRequestObjectResult(apiResponse);
+    };
+});
+
 // Daftarkan semua validator
 builder.Services.AddValidatorsFromAssemblyContaining<SalesValidator>();
 builder.Services.AddValidatorsFromAssemblyContaining<PenjualanValidator>();
+builder.Services.AddValidatorsFromAssemblyContaining<RegisterStep1Validator>();
+builder.Services.AddValidatorsFromAssemblyContaining<RegisterStep2Validator>();
+builder.Services.AddValidatorsFromAssemblyContaining<LoginValidator>();
 // Aktifkan validator ke pipeline validasi otomatis
 builder.Services.AddFluentValidationAutoValidation(options =>
 {

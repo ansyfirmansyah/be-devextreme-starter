@@ -44,9 +44,8 @@ namespace be_devextreme_starter.Controllers
                 return Unauthorized(ApiResponse<object>.Error("User ID atau Password salah.", 401));
             }
 
-            // Validate password
-            var hashedPassword = ComputeSha256Hash(loginDto.Password);
-            if (user.user_password != hashedPassword)
+            // Validasi password menggunakan BCrypt.Verify, sudah auto validasi salt juga
+            if (!BCrypt.Net.BCrypt.Verify(loginDto.Password, user.user_password))
             {
                 return Unauthorized(ApiResponse<object>.Error("User ID atau Password salah.", 401));
             }
@@ -149,34 +148,62 @@ namespace be_devextreme_starter.Controllers
         }
 
         /// <summary>
-        /// Register endpoint: Creates a new user if UserId is not already taken.
+        /// Registrasi Langkah 1: Validasi detail user dan buat token temporer.
         /// </summary>
-        [HttpPost("register")]
-        public async Task<IActionResult> Register([FromBody] RegisterDto registerDto)
+        [HttpPost("register/check-details")]
+        public async Task<IActionResult> CheckDetails([FromBody] RegisterStep1Dto step1Dto)
         {
-            // Check if user already exists
-            if (await _db.User_Masters.AnyAsync(u => u.user_id == registerDto.UserId))
+            // Buat token temporer yang berisi data dari langkah 1
+            var tempToken = GenerateTemporaryToken(step1Dto);
+
+            return Ok(ApiResponse<object>.Ok(new { tempToken }));
+        }
+
+        /// <summary>
+        /// Registrasi Langkah 2: Set password dan buat user baru.
+        /// </summary>
+        [HttpPost("register/complete")]
+        public async Task<IActionResult> CompleteRegistration([FromBody] RegisterStep2Dto step2Dto)
+        {
+            ClaimsPrincipal principal;
+            try
             {
-                return Conflict(ApiResponse<object>.Conflict("User ID sudah terdaftar."));
+                principal = GetPrincipalFromExpiredToken(step2Dto.TempToken); // Kita pakai ulang method ini
+            }
+            catch (SecurityTokenException)
+            {
+                return BadRequest(ApiResponse<object>.BadRequest("Sesi registrasi tidak valid atau sudah kedaluwarsa."));
             }
 
-            // Create new user object
+            var userName = principal.FindFirstValue(ClaimTypes.Name);
+            var email = principal.FindFirstValue(ClaimTypes.Email);
+            var address = principal.FindFirstValue(ClaimTypes.StreetAddress);
+            var phone = principal.FindFirstValue(ClaimTypes.MobilePhone);
+
+            var newUserId = await GenerateUniqueUserId();
+            var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
+
             var newUser = new User_Master
             {
-                user_id = registerDto.UserId,
-                user_nama = registerDto.UserName,
-                user_email = registerDto.Email,
-                user_password = ComputeSha256Hash(registerDto.Password), // Hash password
-                stsrc = "A",
-                date_created = DateTime.Now,
-                created_by = "SYSTEM_REGISTER"
+                user_id = newUserId,
+                user_nama = userName,
+                user_email = email,
+                user_alamat = address,
+                user_telp = phone,
+                user_password = BCrypt.Net.BCrypt.HashPassword(step2Dto.Password),
+                user_status = "Aktif",
+                user_main_role = "Staff",
+                user_roles_csv = "Staff",
+                ip_address = ipAddress,
+                user_agent = step2Dto.DeviceInfo
             };
 
+            _db.SetStsrcFields(newUser);
             _db.User_Masters.Add(newUser);
             await _db.SaveChangesAsync();
 
             return Ok(ApiResponse<object>.Created(
-                new { userId = newUser.user_id, userName = newUser.user_nama },
+                new { userId = newUser.user_id },
                 "Registrasi berhasil."));
         }
 
@@ -242,22 +269,44 @@ namespace be_devextreme_starter.Controllers
             return principal;
         }
 
-        /// <summary>
-        /// Helper: Compute SHA256 hash for password.
-        /// </summary>
-        private string ComputeSha256Hash(string rawData)
+        private async Task<string> GenerateUniqueUserId()
         {
-            using (SHA256 sha256Hash = SHA256.Create())
+            const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+            var random = new Random();
+            string newId;
+            bool isUnique;
+
+            do
             {
-                byte[] bytes = sha256Hash.ComputeHash(Encoding.UTF8.GetBytes(rawData));
-                StringBuilder builder = new StringBuilder();
-                for (int i = 0; i < bytes.Length; i++)
-                {
-                    // "x2" untuk format hexadecimal
-                    builder.Append(bytes[i].ToString("x2"));
-                }
-                return builder.ToString();
-            }
+                newId = new string(Enumerable.Repeat(chars, 5)
+                  .Select(s => s[random.Next(s.Length)]).ToArray());
+                isUnique = !await _db.User_Masters.AnyAsync(u => u.user_id == newId);
+            } while (!isUnique);
+
+            return newId;
+        }
+
+        private string GenerateTemporaryToken(RegisterStep1Dto data)
+        {
+            var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"]));
+            var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
+
+            var claims = new[]
+            {
+            new Claim(ClaimTypes.Name, data.UserName),
+            new Claim(ClaimTypes.Email, data.Email),
+            new Claim(ClaimTypes.StreetAddress, data.Address ?? ""),
+            new Claim(ClaimTypes.MobilePhone, data.PhoneNumber ?? "")
+        };
+
+            var token = new JwtSecurityToken(
+                issuer: _config["Jwt:Issuer"],
+                audience: _config["Jwt:Audience"],
+                claims: claims,
+                expires: DateTime.Now.AddMinutes(10), // Token ini hanya valid 10 menit
+                signingCredentials: credentials);
+
+            return new JwtSecurityTokenHandler().WriteToken(token);
         }
     }
 }
