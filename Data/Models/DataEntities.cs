@@ -1517,7 +1517,7 @@ public partial class DataEntities : DbContext
 
             entity.HasIndex(e => e.user_id, "IX_User_Refresh_Token_UserId");
 
-            entity.Property(e => e.access_token).HasMaxLength(500);
+            entity.Property(e => e.access_token).HasMaxLength(2048);
             entity.Property(e => e.created_by)
                 .HasMaxLength(50)
                 .IsUnicode(false);

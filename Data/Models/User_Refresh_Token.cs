@@ -9,7 +9,7 @@ public partial class User_Refresh_Token
 
     public string user_id { get; set; } = null!;
 
-    public string access_token { get; set; } = null!;
+    public string? access_token { get; set; }
 
     public string refresh_token { get; set; } = null!;
 

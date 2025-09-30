@@ -103,8 +103,11 @@ namespace be_devextreme_starter.Controllers
             // Simpan perubahan terakhir (termasuk reset status jika ada)
             await _db.SaveChangesAsync();
 
+            // Mengambil hak akses pengguna
+            var permissions = await GetUserPermissions(user.user_id);
+
             // Generate tokens
-            var accessToken = GenerateJwtToken(user);
+            var accessToken = GenerateJwtToken(user, permissions);
             var refreshToken = GenerateRefreshToken();
 
             // Save refresh token to database
@@ -163,8 +166,11 @@ namespace be_devextreme_starter.Controllers
                 return BadRequest(ApiResponse<object>.BadRequest("Invalid client request"));
             }
 
+            // Mengambil hak akses pengguna
+            var permissions = await GetUserPermissions(user.user_id);
+
             // Generate new tokens
-            var newAccessToken = GenerateJwtToken(user);
+            var newAccessToken = GenerateJwtToken(user, permissions);
             var newRefreshToken = GenerateRefreshToken();
 
             // Update refresh token in database
@@ -263,18 +269,23 @@ namespace be_devextreme_starter.Controllers
         /// <summary>
         /// Helper: Generate JWT access token for a user.
         /// </summary>
-        private string GenerateJwtToken(User_Master user)
+        private string GenerateJwtToken(User_Master user, List<string> permissions)
         {
             var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"]));
             var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
 
-            var claims = new[]
+            var claims = new List<Claim>
             {
                 new Claim(JwtRegisteredClaimNames.Sub, user.user_id),
                 new Claim(JwtRegisteredClaimNames.Name, user.user_nama),
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
-                // Add more claims if needed
             };
+
+            // Tambahkan semua permission sebagai claim terpisah
+            foreach (var permission in permissions)
+            {
+                claims.Add(new Claim("permission", permission));
+            }
 
             var token = new JwtSecurityToken(
                 issuer: _config["Jwt:Issuer"],
@@ -360,6 +371,22 @@ namespace be_devextreme_starter.Controllers
                 signingCredentials: credentials);
 
             return new JwtSecurityTokenHandler().WriteToken(token);
+        }
+
+        private async Task<List<string>> GetUserPermissions(string userId)
+        {
+            var roles = await _db.FW_User_Roles
+                .Where(ur => ur.user_id == userId && ur.stsrc == "A")
+                .Select(ur => ur.role_id)
+                .ToListAsync();
+
+            var permissions = await _db.FW_Role_Rights
+                .Where(rr => roles.Contains(rr.role_id) && rr.stsrc == "A")
+                .Select(rr => rr.mod_kode)
+                .Distinct()
+                .ToListAsync();
+
+            return permissions;
         }
     }
 }
