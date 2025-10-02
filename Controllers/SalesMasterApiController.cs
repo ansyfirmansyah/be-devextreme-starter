@@ -142,6 +142,7 @@ namespace be_devextreme_starter.Controllers
         }
 
         [HttpGet("download-template")]
+        [AllowAnonymous]
         public IActionResult DownloadTemplate()
         {
             // Mengatur nama file yang akan diunduh

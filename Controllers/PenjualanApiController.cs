@@ -374,6 +374,10 @@ namespace be_devextreme_starter.Controllers
         [HttpGet("ref/kode")]
         public object GetRefKodePenjualan(DataSourceLoadOptions loadOptions)
         {
+            if (loadOptions.Take <= 0)
+            {
+                loadOptions.Take = 20; // default ambil 20 data
+            }
             var query = from h in _db.Jual_Headers
                         join o in _db.Outlet_Masters on h.outlet_id equals o.outlet_id
                         where h.stsrc == "A"
@@ -386,6 +390,7 @@ namespace be_devextreme_starter.Controllers
         }
 
         [HttpGet("download-template")]
+        [AllowAnonymous]
         public IActionResult DownloadTemplate()
         {
             // Mengatur nama file yang akan diunduh
