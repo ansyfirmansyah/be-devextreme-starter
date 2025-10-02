@@ -215,6 +215,46 @@ builder.Services.AddAuthentication(options =>
         return CookieAuthenticationDefaults.AuthenticationScheme;
     };
 });
+// Authorization Policies untuk mengamankan endpoint berdasarkan klaim tertentu
+builder.Services.AddAuthorization(options =>
+{
+    // Sales Policies
+    options.AddPolicy("CanCreateSales", policy => policy.RequireClaim("permission", "SALES_CREATE"));
+    options.AddPolicy("CanEditSales", policy => policy.RequireClaim("permission", "SALES_EDIT"));
+    options.AddPolicy("CanDeleteSales", policy => policy.RequireClaim("permission", "SALES_DELETE"));
+    options.AddPolicy("CanUploadSales", policy => policy.RequireClaim("permission", "SALES_UPLOAD"));
+
+    // Outlet Policies
+    options.AddPolicy("CanCreateOutlet", policy => policy.RequireClaim("permission", "OUTLET_CREATE"));
+    options.AddPolicy("CanEditOutlet", policy => policy.RequireClaim("permission", "OUTLET_EDIT"));
+    options.AddPolicy("CanDeleteOutlet", policy => policy.RequireClaim("permission", "OUTLET_DELETE"));
+
+    // Klasifikasi Policies
+    options.AddPolicy("CanCreateKlasifikasi", policy => policy.RequireClaim("permission", "KLASIFIKASI_CREATE"));
+    options.AddPolicy("CanEditKlasifikasi", policy => policy.RequireClaim("permission", "KLASIFIKASI_EDIT"));
+    options.AddPolicy("CanDeleteKlasifikasi", policy => policy.RequireClaim("permission", "KLASIFIKASI_DELETE"));
+
+    // Barang Policies
+    options.AddPolicy("CanCreateBarang", policy => policy.RequireClaim("permission", "BARANG_CREATE"));
+    options.AddPolicy("CanEditBarang", policy => policy.RequireClaim("permission", "BARANG_EDIT"));
+    options.AddPolicy("CanDeleteBarang", policy => policy.RequireClaim("permission", "BARANG_DELETE"));
+
+    // Penjualan Policies
+    options.AddPolicy("CanCreatePenjualan", policy => policy.RequireClaim("permission", "PENJUALAN_CREATE"));
+    options.AddPolicy("CanEditPenjualan", policy => policy.RequireClaim("permission", "PENJUALAN_EDIT"));
+    options.AddPolicy("CanDeletePenjualan", policy => policy.RequireClaim("permission", "PENJUALAN_DELETE"));
+    options.AddPolicy("CanUploadPenjualan", policy => policy.RequireClaim("permission", "PENJUALAN_UPLOAD"));
+
+    // Role Policies
+    options.AddPolicy("CanCreateRole", policy => policy.RequireClaim("permission", "ROLES_CREATE"));
+    options.AddPolicy("CanEditRole", policy => policy.RequireClaim("permission", "ROLES_EDIT"));
+    options.AddPolicy("CanDeleteRole", policy => policy.RequireClaim("permission", "ROLES_DELETE"));
+
+    // Contact Policies
+    options.AddPolicy("CanCreateContact", policy => policy.RequireClaim("permission", "CONTACT_CREATE"));
+    options.AddPolicy("CanEditContact", policy => policy.RequireClaim("permission", "CONTACT_EDIT"));
+    options.AddPolicy("CanDeleteContact", policy => policy.RequireClaim("permission", "CONTACT_DELETE"));
+});
 
 // 2. Konfigurasi HTTP request pipeline
 // ------------------------------------

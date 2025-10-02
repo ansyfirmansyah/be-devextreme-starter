@@ -59,6 +59,7 @@ namespace be_devextreme_starter.Controllers
 
         // INSERT (Untuk Tombol "Add")
         [HttpPost("post")]
+        [Authorize(Policy = "CanCreateBarang")]
         public IActionResult Post([FromForm] string values)
         {
             try
@@ -159,6 +160,7 @@ namespace be_devextreme_starter.Controllers
 
         // UPDATE (Untuk Tombol "Edit")
         [HttpPut("put")]
+        [Authorize(Policy = "CanEditBarang")]
         public IActionResult Put([FromForm] long key, [FromForm] string values)
         {
             try
@@ -258,6 +260,7 @@ namespace be_devextreme_starter.Controllers
 
         // DELETE (Untuk Tombol "Delete")
         [HttpDelete("delete")]
+        [Authorize(Policy = "CanDeleteBarang")]
         public IActionResult Delete([FromForm] long key)
         {
             try

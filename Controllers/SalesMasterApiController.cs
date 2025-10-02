@@ -58,6 +58,7 @@ namespace be_devextreme_starter.Controllers
 
         // INSERT (Untuk Tombol "Add")
         [HttpPost("post")]
+        [Authorize(Policy = "CanCreateSales")]
         public async Task<IActionResult> Post([FromForm] string values)
         {
             var dto = new SalesUpdateDto();
@@ -82,6 +83,7 @@ namespace be_devextreme_starter.Controllers
 
         // UPDATE (Untuk Tombol "Edit")
         [HttpPut("put")]
+        [Authorize(Policy = "CanEditSales")]
         public async Task<IActionResult> Put([FromForm] long key, [FromForm] string values)
         {
             try
@@ -114,6 +116,7 @@ namespace be_devextreme_starter.Controllers
 
         // DELETE (Untuk Tombol "Delete")
         [HttpDelete("delete")]
+        [Authorize(Policy = "CanDeleteSales")]
         public IActionResult Delete([FromForm] long key)
         {
             try
@@ -196,6 +199,7 @@ namespace be_devextreme_starter.Controllers
         }
 
         [HttpPost("preview-upload")]
+        [Authorize(Policy = "CanUploadSales")]
         public async Task<IActionResult> PreviewUpload([FromForm] FileUploadRequest request)
         {
             // Mendapatkan file dari request body
@@ -301,6 +305,7 @@ namespace be_devextreme_starter.Controllers
         }
 
         [HttpPost("commit-upload")]
+        [Authorize(Policy = "CanUploadSales")]
         public async Task<IActionResult> CommitUpload([FromBody] List<SalesUploadPreviewDto> validSales)
         {
             // Periksa isi request body

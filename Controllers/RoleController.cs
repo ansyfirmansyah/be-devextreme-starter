@@ -69,6 +69,7 @@ namespace be_devextreme_starter.Controllers
         /// Create a new role and its rights.
         /// </summary>
         [HttpPost("post")]
+        [Authorize(Policy = "CanCreateRole")]
         public async Task<IActionResult> Post([FromForm] string values)
         {
             // Deserialize data dari form ke DTO
@@ -110,6 +111,7 @@ namespace be_devextreme_starter.Controllers
         /// Update an existing role and its rights.
         /// </summary>
         [HttpPut("put")]
+        [Authorize(Policy = "CanEditRole")]
         public async Task<IActionResult> Put([FromForm] string key, [FromForm] string values)
         {
             // Cari role lama berdasarkan key
@@ -149,6 +151,7 @@ namespace be_devextreme_starter.Controllers
         /// Delete a role and its rights (soft delete).
         /// </summary>
         [HttpDelete("delete")]
+        [Authorize(Policy = "CanDeleteRole")]
         public async Task<IActionResult> Delete([FromForm] string key)
         {
             // Cari role berdasarkan key

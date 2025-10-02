@@ -67,13 +67,7 @@ public partial class User_Master
 
     public DateTime? LastTimeCookies { get; set; }
 
-    public virtual ICollection<FW_Notice_Queue> FW_Notice_Queues { get; set; } = new List<FW_Notice_Queue>();
-
-    public virtual ICollection<FW_User_Lost_Password> FW_User_Lost_Passwords { get; set; } = new List<FW_User_Lost_Password>();
-
     public virtual ICollection<FW_User_Role> FW_User_Roles { get; set; } = new List<FW_User_Role>();
 
     public virtual ICollection<User_Refresh_Token> User_Refresh_Tokens { get; set; } = new List<User_Refresh_Token>();
-
-    public virtual Post? post { get; set; }
 }

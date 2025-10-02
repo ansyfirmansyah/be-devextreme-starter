@@ -48,6 +48,7 @@ namespace be_devextreme_starter.Controllers
 
         // INSERT (Untuk Tombol "Add")
         [HttpPost("post")]
+        [Authorize(Policy = "CanCreateOutlet")]
         public async Task<IActionResult> Post([FromForm] string values)
         {
             var newOutlet = new Outlet_Master();
@@ -65,6 +66,7 @@ namespace be_devextreme_starter.Controllers
 
         // UPDATE (Untuk Tombol "Edit")
         [HttpPut("put")]
+        [Authorize(Policy = "CanEditOutlet")]
         public async Task<IActionResult> Put([FromForm] long key, [FromForm] string values)
         {
             var outlet = await _db.Outlet_Masters.FindAsync(key);
@@ -84,6 +86,7 @@ namespace be_devextreme_starter.Controllers
 
         // DELETE (Untuk Tombol "Delete")
         [HttpDelete("delete")]
+        [Authorize(Policy = "CanDeleteOutlet")]
         public async Task<IActionResult> Delete([FromForm] long key)
         {
             var outlet = await _db.Outlet_Masters.FindAsync(key);

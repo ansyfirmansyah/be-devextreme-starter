@@ -55,6 +55,7 @@ namespace be_devextreme_starter.Controllers
 
         // INSERT (Untuk Tombol "Add")
         [HttpPost("post")]
+        [Authorize(Policy = "CanCreatePenjualan")]
         public async Task<IActionResult> Post([FromForm] string values)
         {
             // Gunakan DTO untuk mendapatkan Request Body, dikarenakan terdapat tambahan field seperti temptable_outlet_id
@@ -115,6 +116,7 @@ namespace be_devextreme_starter.Controllers
 
         // UPDATE (Untuk Tombol "Edit")
         [HttpPut("put")]
+        [Authorize(Policy = "CanEditPenjualan")]
         public async Task<IActionResult> Put([FromForm] long key, [FromForm] string values)
         {
             var oldObj = _db.Jual_Headers.Find(key); // cari terlebih dahulu data sesuai id yang diubah
@@ -177,6 +179,7 @@ namespace be_devextreme_starter.Controllers
 
         // DELETE (Untuk Tombol "Delete")
         [HttpDelete("delete")]
+        [Authorize(Policy = "CanDeletePenjualan")]
         public IActionResult Delete([FromForm] long key)
         {
             var obj = _db.Jual_Headers.Find(key); // cari data berdasarkan id yang diberikan
@@ -679,6 +682,7 @@ namespace be_devextreme_starter.Controllers
         }
 
         [HttpPost("preview-upload")]
+        [Authorize(Policy = "CanUploadPenjualan")]
         public async Task<IActionResult> PreviewUpload([FromForm] FileUploadRequest request)
         {
             // Mendapatkan file dari request body
@@ -990,6 +994,7 @@ namespace be_devextreme_starter.Controllers
         }
 
         [HttpPost("commit-upload")]
+        [Authorize(Policy = "CanUploadPenjualan")]
         public async Task<IActionResult> CommitUpload([FromBody] PenjualanUploadPreviewDto validPenjualan)
         {
             // Periksa isi request body

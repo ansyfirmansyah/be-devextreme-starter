@@ -58,6 +58,7 @@ namespace be_devextreme_starter.Areas.API.Controllers
 
         // INSERT (Untuk Tombol "Add")
         [HttpPost("post")]
+        [Authorize(Policy = "CanCreateKlasifikasi")]
         public IActionResult Post([FromForm] string values)
         {
             try
@@ -82,6 +83,7 @@ namespace be_devextreme_starter.Areas.API.Controllers
 
         // UPDATE (Untuk Tombol "Edit")
         [HttpPut("put")]
+        [Authorize(Policy = "CanEditKlasifikasi")]
         public IActionResult Put([FromForm] long key, [FromForm] string values)
         {
             try
@@ -109,6 +111,7 @@ namespace be_devextreme_starter.Areas.API.Controllers
 
         // DELETE (Untuk Tombol "Delete")
         [HttpDelete("delete")]
+        [Authorize(Policy = "CanDeleteKlasifikasi")]
         public IActionResult Delete([FromForm] long key)
         {
             try
