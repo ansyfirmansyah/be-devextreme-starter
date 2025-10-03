@@ -248,6 +248,7 @@ builder.Services.AddAuthorization(options =>
     // Role Policies
     options.AddPolicy("CanCreateRole", policy => policy.RequireClaim("permission", "ROLES_CREATE"));
     options.AddPolicy("CanEditRole", policy => policy.RequireClaim("permission", "ROLES_EDIT"));
+    options.AddPolicy("CanEditUserRole", policy => policy.RequireClaim("permission", "ROLES_EDIT"));
     options.AddPolicy("CanDeleteRole", policy => policy.RequireClaim("permission", "ROLES_DELETE"));
 
     // Contact Policies

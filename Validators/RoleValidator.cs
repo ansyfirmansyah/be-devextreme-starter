@@ -12,14 +12,14 @@ namespace be_devextreme_starter.Validators
         {
             _db = db;
 
-            RuleFor(x => x.RoleId)
+            RuleFor(x => x.roleId)
                 .NotEmpty().WithMessage("Role ID tidak boleh kosong.")
                 .MaximumLength(40).WithMessage("Role ID maksimal 40 karakter.")
                 .Must(roleId => !_db.FW_Ref_Roles.Any(r => r.role_id == roleId))
                 .WithMessage("Role ID sudah digunakan.")
-                .When(x => string.IsNullOrEmpty(x.RoleId)); // Validasi unik hanya saat membuat baru
+                .When(x => string.IsNullOrEmpty(x.roleId)); // Validasi unik hanya saat membuat baru
 
-            RuleFor(x => x.RoleCatatan)
+            RuleFor(x => x.roleCatatan)
                 .NotEmpty().WithMessage("Catatan tidak boleh kosong.");
         }
 

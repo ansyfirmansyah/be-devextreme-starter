@@ -35,21 +35,69 @@ namespace be_devextreme_starter.Controllers
         [HttpGet("get")]
         public async Task<object> Get(DataSourceLoadOptions loadOptions)
         {
-            // Ambil semua role yang aktif (stsrc == "A")
-            var roles = await _db.FW_Ref_Roles
+            // 1. Ambil semua data mentah yang diperlukan dari database ke memori
+            var allRoles = await _db.FW_Ref_Roles
                 .Where(r => r.stsrc == "A")
-                .Select(r => new RoleDto
-                {
-                    RoleId = r.role_id,
-                    RoleCatatan = r.role_catatan,
-                    // Ambil semua kode modul yang terkait dengan role ini
-                    ModKodes = _db.FW_Role_Rights
-                        .Where(c => c.role_id == r.role_id && c.stsrc == "A")
-                        .Select(c => c.mod_kode).ToList()
-                }).ToListAsync();
+                .ToListAsync();
 
-            // Return data dalam format yang bisa diproses DevExtreme
-            return DataSourceLoader.Load(roles, loadOptions);
+            var allRights = await _db.FW_Role_Rights
+                .Where(rr => rr.stsrc == "A")
+                .ToListAsync();
+
+            // 2. Lakukan grouping dan perhitungan statistik di memori (LINQ to Objects)
+            var roleStats = allRights
+                .GroupBy(rr => rr.role_id)
+                .Select(g => new
+                {
+                    RoleId = g.Key,
+                    MenuCount = g.Count(c => c.mod_kode.StartsWith("MENU_")),
+                    ActionCount = g.Count(c => !c.mod_kode.StartsWith("MENU_"))
+                })
+                .ToDictionary(s => s.RoleId); // Ubah ke Dictionary untuk pencarian cepat
+
+            // 3. Gabungkan (join) kedua list di memori
+            var query = from role in allRoles
+                        select new
+                        {
+                            RoleId = role.role_id,
+                            RoleCatatan = role.role_catatan,
+                            Menu = roleStats.ContainsKey(role.role_id) ? roleStats[role.role_id].MenuCount : 0,
+                            Action = roleStats.ContainsKey(role.role_id) ? roleStats[role.role_id].ActionCount : 0
+                        };
+
+            // 4. Kembalikan data untuk DevExtreme
+            return DataSourceLoader.Load(query, loadOptions);
+        }
+
+        /// <summary>
+        /// Get active roles by id and module codes.
+        /// </summary>
+        [HttpGet("get/{id}")]
+        public async Task<IActionResult> GetDetail(string id)
+        {
+            var role = await _db.FW_Ref_Roles
+                .Where(rr => rr.role_id == id && rr.stsrc == "A")
+                .Select(rr => new RoleDto
+                {
+                    roleId = rr.role_id,
+                    roleCatatan = rr.role_catatan,
+                    // Ambil semua kode modul yang terkait dengan role ini
+                    modKodes = _db.FW_Role_Rights
+                        .Where(c => c.role_id == rr.role_id && c.stsrc == "A")
+                        // Urutkan sehingga yang diawali "MENU_" muncul dulu
+                        .OrderBy(m => m.mod_kode.StartsWith("MENU_") ? 0 : 1)
+                        // lalu urutkan berdasarkan kode modul
+                        .ThenBy(m => m.mod_kode)
+                        .Select(c => c.mod_kode).ToList()
+                })
+                .FirstOrDefaultAsync();
+
+            if (role == null)
+            {
+                return NotFound(ApiResponse<object>.NotFound("Role not found"));
+            }
+
+            return Ok(ApiResponse<object>.Ok(role));
         }
 
         /// <summary>
@@ -60,9 +108,29 @@ namespace be_devextreme_starter.Controllers
         {
             // Ambil semua modul, urutkan berdasarkan kode
             var modules = await _db.FW_Ref_Moduls
-                .OrderBy(m => m.mod_kode)
+                // Urutkan sehingga yang diawali "MENU_" muncul dulu
+                .OrderBy(m => m.mod_kode.StartsWith("MENU_") ? 0 : 1)
+                // lalu urutkan berdasarkan kode modul
+                .ThenBy(m => m.mod_kode)
                 .ToListAsync();
             return DataSourceLoader.Load(modules, loadOptions);
+        }
+
+        [HttpGet("group-modules")]
+        public async Task<object> GetGroupedModules(DataSourceLoadOptions loadOptions)
+        {
+            var modules = _db.FW_Ref_Moduls
+            // Tambahkan kolom 'group' virtual untuk di-consume oleh frontend
+            .Select(m => new {
+                m.mod_kode,
+                m.mod_catatan,
+                group = m.mod_kode.StartsWith("MENU_") ? "Hak Akses Menu" : "Hak Akses Aksi"
+            })
+            // Urutkan berdasarkan grup dulu, baru kode
+            .OrderByDescending(m => m.group)
+            .ThenBy(m => m.mod_kode);
+
+            return await DataSourceLoader.LoadAsync(modules, loadOptions);
         }
 
         /// <summary>
@@ -84,15 +152,15 @@ namespace be_devextreme_starter.Controllers
             // Buat objek role baru
             var newRole = new FW_Ref_Role
             {
-                role_id = dto.RoleId,
-                role_catatan = dto.RoleCatatan
+                role_id = dto.roleId,
+                role_catatan = dto.roleCatatan
             };
             // Set audit fields (created_by, date_created, dll)
             _auditService.SetStsrcFields(newRole);
             _db.FW_Ref_Roles.Add(newRole);
 
             // Tambahkan hak akses (rights) untuk setiap modul yang dipilih
-            foreach (var modKode in dto.ModKodes)
+            foreach (var modKode in dto.modKodes)
             {
                 var newRight = new FW_Role_Right
                 {
@@ -124,7 +192,7 @@ namespace be_devextreme_starter.Controllers
             // Deserialize data baru
             var dto = JsonConvert.DeserializeObject<RoleDto>(values);
             // Update catatan role
-            oldRole.role_catatan = dto.RoleCatatan;
+            oldRole.role_catatan = dto.roleCatatan;
             _auditService.SetStsrcFields(oldRole);
 
             // Hapus semua hak akses lama
@@ -132,7 +200,7 @@ namespace be_devextreme_starter.Controllers
             _db.FW_Role_Rights.RemoveRange(existingRights);
 
             // Tambahkan hak akses baru sesuai modul yang dipilih
-            foreach (var modKode in dto.ModKodes)
+            foreach (var modKode in dto.modKodes)
             {
                 var newRight = new FW_Role_Right
                 {
